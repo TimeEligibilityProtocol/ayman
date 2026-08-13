@@ -6,9 +6,6 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
-import { prisma } from "../lib/prisma";
-import { analyzeNewStory, chatWithEditor, proposeBookStructure, approveStory } from "../lib/editor";
-
 const STORIES = [
   {
     title: "Sunday with my Father",
@@ -25,6 +22,11 @@ const STORIES = [
 ];
 
 async function main() {
+  // Dynamic import: static ESM imports are hoisted above the dotenv calls
+  // above, which would run lib/prisma's DATABASE_URL check too early.
+  const { prisma } = await import("../lib/prisma");
+  const { analyzeNewStory, chatWithEditor, proposeBookStructure, approveStory } = await import("../lib/editor");
+
   const book = await prisma.book.findUniqueOrThrow({ where: { slug: "ayman" } });
 
   // clean slate for repeatable testing
@@ -80,9 +82,7 @@ async function main() {
   console.log("\nDone.");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

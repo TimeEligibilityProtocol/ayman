@@ -2,9 +2,11 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
-import { prisma } from "../lib/prisma";
-
 async function main() {
+  // Dynamic import: static ESM imports are hoisted above the dotenv calls
+  // above, which would run lib/prisma's DATABASE_URL check too early.
+  const { prisma } = await import("../lib/prisma");
+
   const existing = await prisma.book.findUnique({ where: { slug: "ayman" } });
   if (existing) {
     console.log("Book 'ayman' already exists, skipping seed.");
@@ -26,9 +28,7 @@ async function main() {
   console.log(`Seeded book '${book.slug}' (${book.id}) for user ${user.name}`);
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

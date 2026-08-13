@@ -26,6 +26,7 @@ const notoArabic = Noto_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "Ayman — Every story matters",
   description: "Tell your story. Your Editor finds the book hidden inside it.",
   manifest: "/manifest.json",
