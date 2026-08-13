@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { RegenerateStructureButton, ExportButton } from "@/components/StructureActions";
+import { RemoteEditableText } from "@/components/RemoteEditableText";
 import { BookIcon } from "@/components/icons";
 
 export default async function MyBookPage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -20,11 +21,21 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
 
   return (
     <div className="px-5 md:px-10 py-6 md:py-10 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-serif text-2xl">My Book</h1>
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">My Book</div>
+          <RemoteEditableText
+            endpoint={`/api/books/${book.slug}`}
+            field="title"
+            value={book.title || ""}
+            as="h1"
+            className="font-serif text-2xl"
+            placeholder="Untitled — ask your Editor, or set one yourself"
+          />
+        </div>
         <RegenerateStructureButton
           bookId={book.slug}
-          className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-ink-soft hover:border-gold hover:text-gold-deep"
+          className="shrink-0 w-8 h-8 rounded-full border border-border flex items-center justify-center text-ink-soft hover:border-gold hover:text-gold-deep"
         >
           +
         </RegenerateStructureButton>

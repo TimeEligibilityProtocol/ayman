@@ -23,7 +23,7 @@ export default async function StructurePage({ params }: { params: Promise<{ book
         <h1 className="font-serif text-xl">Structure</h1>
       </div>
 
-      <StructureTabs parts={parts} />
+      <StructureTabs bookId={book.slug} parts={parts} />
 
       <ExportButton
         bookId={book.slug}

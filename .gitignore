@@ -1,5 +1,10 @@
 # Python terminal prototype's story data (private content, never commit)
-books/
+# Leading slash anchors this to the repo root — without it, this also
+# matched webapp/app/api/books/ and silently excluded the entire backend!
+/books/
+
+# generated exports, not source
+*.docx
 
 # macOS
 .DS_Store

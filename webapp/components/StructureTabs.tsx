@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RemoteEditableText } from "@/components/RemoteEditableText";
 
 interface Thread {
   id: string;
@@ -18,7 +19,7 @@ interface Part {
   chapters: Chapter[];
 }
 
-export function StructureTabs({ parts }: { parts: Part[] }) {
+export function StructureTabs({ bookId, parts }: { bookId: string; parts: Part[] }) {
   const [tab, setTab] = useState<"parts" | "chapters">("parts");
 
   const allChapters = parts.flatMap((p) =>
@@ -50,7 +51,13 @@ export function StructureTabs({ parts }: { parts: Part[] }) {
           return (
             <div key={part.id} className="mb-6">
               <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">Part {i + 1}</div>
-              <div className="font-serif text-lg mb-1">{part.title}</div>
+              <RemoteEditableText
+                endpoint={`/api/books/${bookId}/parts/${part.id}`}
+                field="title"
+                value={part.title}
+                as="div"
+                className="font-serif text-lg mb-1"
+              />
               <div className="text-xs text-ink-soft mb-3">
                 {part.chapters.length} chapters · {storyCount} stories
               </div>
@@ -60,7 +67,13 @@ export function StructureTabs({ parts }: { parts: Part[] }) {
                   return (
                     <div key={chapter.id} className="rounded-xl border border-border bg-card px-4 py-3">
                       <div className="text-xs text-ink-soft">Chapter {ci + 1}</div>
-                      <div className="text-sm text-ink">{chapter.title}</div>
+                      <RemoteEditableText
+                        endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
+                        field="title"
+                        value={chapter.title}
+                        as="div"
+                        className="text-sm text-ink"
+                      />
                       <div className="text-xs text-ink-soft mt-0.5">{chStoryCount} stories</div>
                     </div>
                   );
@@ -79,7 +92,13 @@ export function StructureTabs({ parts }: { parts: Part[] }) {
                 <div className="text-xs text-ink-soft">
                   Chapter {i + 1} · {chapter.partTitle}
                 </div>
-                <div className="text-sm text-ink">{chapter.title}</div>
+                <RemoteEditableText
+                  endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
+                  field="title"
+                  value={chapter.title}
+                  as="div"
+                  className="text-sm text-ink"
+                />
                 <div className="text-xs text-ink-soft mt-0.5">{storyCount} stories</div>
               </div>
             );
