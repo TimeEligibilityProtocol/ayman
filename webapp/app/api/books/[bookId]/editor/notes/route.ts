@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ bookId: st
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
   const notes = await prisma.editorNote.findMany({
-    where: { bookId: book.id },
+    where: { bookId: book.id, status: "pending" },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: { story: { select: { title: true } } },

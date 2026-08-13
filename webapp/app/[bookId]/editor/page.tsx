@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
-import { SparkleIcon, EyeIcon } from "@/components/icons";
-
-const KIND_LABEL: Record<string, string> = {
-  observation: "An observation",
-  pattern: "A pattern I see",
-  question: "A question",
-};
+import { EyeIcon } from "@/components/icons";
+import { EditorNotesList } from "@/components/EditorNotesList";
 
 export default async function EditorPage({ params }: { params: Promise<{ bookId: string }> }) {
   const { bookId } = await params;
   const book = await getBookBySlug(bookId);
   const notes = await prisma.editorNote.findMany({
-    where: { bookId: book.id },
+    where: { bookId: book.id, status: "pending" },
     orderBy: { createdAt: "desc" },
     take: 6,
   });
@@ -30,31 +25,15 @@ export default async function EditorPage({ params }: { params: Promise<{ bookId:
             : "Record a few stories and I'll start noticing things worth talking about."}
         </p>
 
-        <div className="space-y-3 mb-8">
-          {notes.map((note) => (
-            <div
-              key={note.id}
-              className="rounded-xl bg-navy-soft border border-border-navy px-4 py-3.5"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 text-xs text-gold-soft">
-                  <SparkleIcon className="w-3.5 h-3.5" />
-                  {note.title}
-                </div>
-                {note.isNew && (
-                  <span className="text-[10px] uppercase tracking-wide bg-gold text-navy rounded-full px-2 py-0.5">
-                    New
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-cream/85">{note.body}</p>
-            </div>
-          ))}
-        </div>
+        {notes.length > 0 && (
+          <div className="mb-8">
+            <EditorNotesList bookId={book.slug} initialNotes={notes} dark emptyMessage="" />
+          </div>
+        )}
 
         {notes.length > 3 && (
           <Link
-            href={`/${book.slug}/editor/talk`}
+            href={`/${book.slug}/editor/notes`}
             className="flex items-center gap-1.5 text-xs text-cream/50 mb-6 hover:text-cream/80"
           >
             <EyeIcon className="w-3.5 h-3.5" />

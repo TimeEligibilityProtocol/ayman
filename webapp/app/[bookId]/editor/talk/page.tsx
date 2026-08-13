@@ -8,7 +8,11 @@ export default async function EditorTalkPage({ params }: { params: Promise<{ boo
 
   const [turns, notes] = await Promise.all([
     prisma.conversationTurn.findMany({ where: { bookId: book.id }, orderBy: { createdAt: "asc" } }),
-    prisma.editorNote.findMany({ where: { bookId: book.id }, orderBy: { createdAt: "desc" }, take: 10 }),
+    prisma.editorNote.findMany({
+      where: { bookId: book.id, status: "pending" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
 
   return (
