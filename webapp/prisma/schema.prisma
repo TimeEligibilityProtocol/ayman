@@ -1,15 +1,15 @@
 // Multi-tenant from day one: every content model hangs off Book, and Book
 // hangs off User. Today there's exactly one User (Ola) and one real Book
 // (Ayman's), but the shape already supports many users / many books each.
-// SQLite for local dev — swap the datasource to Postgres later without
-// touching the model shapes (see ai-book-editor-ayman-project memory).
+// Postgres (Render's managed DB in production; any reachable Postgres via
+// DATABASE_URL for local dev — see ai-book-editor-ayman-project memory).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {

@@ -2,6 +2,10 @@
 // (skipping audio/transcription, which need OPENAI_API_KEY and a real mic)
 // and runs them through the real Editor pipeline against the live
 // Anthropic API, to prove the ported architecture works end-to-end.
+import dotenv from "dotenv";
+dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.local", override: true });
+
 import { prisma } from "../lib/prisma";
 import { analyzeNewStory, chatWithEditor, proposeBookStructure, approveStory } from "../lib/editor";
 

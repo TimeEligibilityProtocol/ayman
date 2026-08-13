@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlugOrNull } from "@/lib/getBook";
+import { deleteAudioFile } from "@/lib/storage";
 
 const EDITABLE_FIELDS = [
   "title",
@@ -57,8 +56,7 @@ export async function DELETE(
   await prisma.story.delete({ where: { id: storyId } });
 
   if (story.audioUrl) {
-    const filePath = path.join(process.cwd(), "public", story.audioUrl);
-    await fs.unlink(filePath).catch(() => {});
+    await deleteAudioFile(story.audioUrl);
   }
 
   return NextResponse.json({ ok: true });
