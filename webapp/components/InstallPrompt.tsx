@@ -76,7 +76,7 @@ export function InstallPrompt() {
           </>
         ) : (
           <p className="text-xs text-ink-soft">
-            Tap the <strong>Share</strong> icon in Safari&apos;s toolbar, then{" "}
+            Tap the <strong>•••</strong> icon in the toolbar, then <strong>Share</strong>, then{" "}
             <strong>&quot;Add to Home Screen&quot;</strong>.
           </p>
         )}
