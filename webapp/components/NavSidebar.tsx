@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
-import { MicIcon, DocumentIcon, EditorIcon, BookIcon, SettingsIcon } from "@/components/icons";
+import { MicIcon, DocumentIcon, EditorIcon, BookIcon } from "@/components/icons";
 
 const ICONS = { tell: MicIcon, stories: DocumentIcon, editor: EditorIcon, book: BookIcon };
 
@@ -35,12 +35,6 @@ export function NavSidebar({ bookId, displayName }: { bookId: string; displayNam
           );
         })}
       </ul>
-      <div className="space-y-1 pt-4 border-t border-border">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink-soft">
-          <SettingsIcon className="w-4.5 h-4.5" />
-          Settings
-        </div>
-      </div>
     </aside>
   );
 }
