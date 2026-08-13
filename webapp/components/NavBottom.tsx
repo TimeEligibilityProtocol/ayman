@@ -11,7 +11,7 @@ export function NavBottom({ bookId }: { bookId: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-card border-t border-border">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-cream border-t-2 border-navy">
       <ul className="flex items-stretch">
         {NAV_ITEMS.map((item) => {
           const href = `/${bookId}/${item.segment}`;
