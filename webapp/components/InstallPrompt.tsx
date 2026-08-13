@@ -12,14 +12,13 @@ export function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
   const [dismissed, setDismissed] = useState(true); // start hidden until we know
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return;
-
-    if (localStorage.getItem("ayman-install-dismissed") === "1") return;
 
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
     setIsIOS(ios);
@@ -29,26 +28,35 @@ export function InstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     }
+    function onInstalled() {
+      setInstalled(true);
+    }
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
-    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   function dismiss() {
+    // Only hides for the current visit — reappears next time until the app
+    // is actually installed. Ola wants it always there until real install.
     setDismissed(true);
-    localStorage.setItem("ayman-install-dismissed", "1");
   }
 
   async function handleInstall() {
     if (deferredPrompt) {
       await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
       setDeferredPrompt(null);
-      dismiss();
+      if (outcome === "accepted") setInstalled(true);
     } else if (isIOS) {
       setShowIOSHelp(true);
     }
   }
 
-  if (dismissed || (!deferredPrompt && !isIOS)) return null;
+  if (installed || dismissed || (!deferredPrompt && !isIOS)) return null;
 
   return (
     <div className="mx-5 md:mx-10 mt-3 rounded-xl border border-gold-soft bg-gold-soft/30 px-4 py-3 flex items-start gap-3">
