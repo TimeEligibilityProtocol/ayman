@@ -1,0 +1,6 @@
+# Python terminal prototype's story data (private content, never commit)
+books/
+
+# macOS
+.DS_Store
+preview.png

@@ -1,0 +1,54 @@
+import type { Metadata } from "next";
+import { EB_Garamond, Inter, Amiri, Noto_Sans_Arabic } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
+import "./globals.css";
+
+const ebGaramond = EB_Garamond({
+  variable: "--font-eb-garamond",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const amiri = Amiri({
+  variable: "--font-amiri",
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+});
+
+const notoArabic = Noto_Sans_Arabic({
+  variable: "--font-noto-arabic",
+  subsets: ["arabic"],
+});
+
+export const metadata: Metadata = {
+  title: "Ayman — Every story matters",
+  description: "Tell your story. Your Editor finds the book hidden inside it.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icons/icon-512.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#241e36",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html
+      lang="en"
+      className={`${ebGaramond.variable} ${inter.variable} ${amiri.variable} ${notoArabic.variable} h-full antialiased`}
+    >
+      <body className="h-dvh flex flex-col overflow-hidden bg-cream text-ink font-sans">
+        <PwaRegister />
+        {children}
+      </body>
+    </html>
+  );
+}

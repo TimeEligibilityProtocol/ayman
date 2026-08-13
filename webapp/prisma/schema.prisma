@@ -1,0 +1,155 @@
+// Multi-tenant from day one: every content model hangs off Book, and Book
+// hangs off User. Today there's exactly one User (Ola) and one real Book
+// (Ayman's), but the shape already supports many users / many books each.
+// SQLite for local dev — swap the datasource to Postgres later without
+// touching the model shapes (see ai-book-editor-ayman-project memory).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  books     Book[]
+}
+
+model Book {
+  id              String   @id @default(cuid())
+  slug            String   @unique // URL segment, e.g. "ayman"
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  displayName     String // "Ayman" — shown as the app header
+  title           String? // book title, once the Editor proposes / user confirms one
+  titleCandidates Json?
+  theme           String   @default("default")
+  coverImage      String?
+  editingIntensity String  @default("keep_voice") // keep_voice | polish_lightly | literary_edit | publication_ready
+  createdAt       DateTime @default(now())
+
+  stories           Story[]
+  threads           Thread[]
+  parts             Part[]
+  chapters          Chapter[]
+  editorNotes       EditorNote[]
+  conversationTurns ConversationTurn[]
+  storyMemory       StoryMemory?
+}
+
+// The atomic unit: one recording. VOICE -> STORY.
+// Original audio + verbatim transcript are immutable once set.
+model Story {
+  id     String @id @default(cuid())
+  bookId String
+  book   Book   @relation(fields: [bookId], references: [id])
+
+  title       String? // short auto-generated label, e.g. "Sunday with my Father"
+  audioUrl    String?
+  durationSec Int?
+
+  // ORIGINAL MEMORY layer — never edited after creation
+  transcriptOriginal String?
+  transcriptLanguage String?
+  transcriptEnglish  String?
+  transcriptArabic   String?
+
+  // EDITORIAL WORKSPACE + APPROVED STORY layers
+  approvalState String  @default("pending") // pending | approved | exploring | not_quite | deferred
+  approvedText  String? // set only once the user says "Yes, that's it"
+
+  threadId String?
+  thread   Thread? @relation(fields: [threadId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  editorNotes       EditorNote[]
+  conversationTurns ConversationTurn[]
+}
+
+// Editor groups related Stories into a Thread. STORY -> THREAD.
+model Thread {
+  id      String  @id @default(cuid())
+  bookId  String
+  book    Book    @relation(fields: [bookId], references: [id])
+  title   String
+  summary String?
+
+  chapterId String?
+  chapter   Chapter? @relation(fields: [chapterId], references: [id])
+
+  stories   Story[]
+  createdAt DateTime @default(now())
+}
+
+// Threads become Chapters. THREAD -> CHAPTER.
+model Chapter {
+  id     String @id @default(cuid())
+  bookId String
+  book   Book   @relation(fields: [bookId], references: [id])
+
+  partId String?
+  part   Part?   @relation(fields: [partId], references: [id])
+
+  title   String
+  order   Int    @default(0)
+  threads Thread[]
+
+  createdAt DateTime @default(now())
+}
+
+// Chapters group into Parts. CHAPTER -> BOOK.
+model Part {
+  id       String    @id @default(cuid())
+  bookId   String
+  book     Book      @relation(fields: [bookId], references: [id])
+  title    String
+  order    Int       @default(0)
+  chapters Chapter[]
+
+  createdAt DateTime @default(now())
+}
+
+// The Editor's silent observations, queued and shown only when the user
+// opens the Editor tab — never interrupting the Tell/Capture flow.
+model EditorNote {
+  id      String  @id @default(cuid())
+  bookId  String
+  book    Book    @relation(fields: [bookId], references: [id])
+  storyId String?
+  story   Story?  @relation(fields: [storyId], references: [id])
+
+  kind      String // observation | pattern | question
+  title     String
+  body      String
+  isNew     Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// "Talk to my Editor" conversation log.
+model ConversationTurn {
+  id      String  @id @default(cuid())
+  bookId  String
+  book    Book    @relation(fields: [bookId], references: [id])
+  storyId String?
+  story   Story?  @relation(fields: [storyId], references: [id])
+
+  role      String // user | editor
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// Compressed, structured knowledge about the whole book — the Story Memory
+// from the terminal prototype, now one row per Book instead of a JSON file.
+model StoryMemory {
+  id        String   @id @default(cuid())
+  bookId    String   @unique
+  book      Book     @relation(fields: [bookId], references: [id])
+  data      Json
+  updatedAt DateTime @updatedAt
+}

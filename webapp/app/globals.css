@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm, literary palette — cream / ink-navy / sandy gold, matching the Ayman mockup */
+  --raw-cream: #f7f1e6;
+  --raw-cream-soft: #fbf8f1;
+  --raw-card: #ffffff;
+  --raw-ink: #29233a;
+  --raw-ink-soft: #635d70;
+  --raw-navy: #241e36;
+  --raw-navy-soft: #322a48;
+  --raw-navy-softer: #3d3555;
+  --raw-gold: #c39b5c;
+  --raw-gold-soft: #e4d3ac;
+  --raw-gold-deep: #a9803d;
+  --raw-border: #e7dfc9;
+  --raw-border-navy: #4a4266;
+}
+
+@theme inline {
+  --color-cream: var(--raw-cream);
+  --color-cream-soft: var(--raw-cream-soft);
+  --color-card: var(--raw-card);
+  --color-ink: var(--raw-ink);
+  --color-ink-soft: var(--raw-ink-soft);
+  --color-navy: var(--raw-navy);
+  --color-navy-soft: var(--raw-navy-soft);
+  --color-navy-softer: var(--raw-navy-softer);
+  --color-gold: var(--raw-gold);
+  --color-gold-soft: var(--raw-gold-soft);
+  --color-gold-deep: var(--raw-gold-deep);
+  --color-border: var(--raw-border);
+  --color-border-navy: var(--raw-border-navy);
+
+  --font-serif: var(--font-eb-garamond);
+  --font-sans: var(--font-inter);
+  --font-arabic-serif: var(--font-amiri);
+  --font-arabic-sans: var(--font-noto-arabic);
+}
+
+body {
+  background: var(--raw-cream);
+  color: var(--raw-ink);
+  font-family: var(--font-inter);
+}
+
+[dir="rtl"] {
+  font-family: var(--font-noto-arabic);
+}
+
+[dir="rtl"] .font-serif {
+  font-family: var(--font-amiri);
+}
+
+::selection {
+  background: var(--raw-gold-soft);
+  color: var(--raw-ink);
+}
