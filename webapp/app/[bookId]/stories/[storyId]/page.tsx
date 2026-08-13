@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { StoryDecision } from "@/components/StoryDecision";
+import { DeleteStoryButton } from "@/components/DeleteStoryButton";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 
@@ -56,6 +57,10 @@ export default async function StoryDetailPage({
           </p>
         </section>
       )}
+
+      <div className="pt-4 border-t border-border">
+        <DeleteStoryButton bookId={book.slug} storyId={story.id} />
+      </div>
     </div>
   );
 }
