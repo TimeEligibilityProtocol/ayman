@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { RegenerateStructureButton, ExportButton } from "@/components/StructureActions";
 import { RemoteEditableText } from "@/components/RemoteEditableText";
+import { PartListItem } from "@/components/PartListItem";
 import { BookIcon } from "@/components/icons";
 
 export default async function MyBookPage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -64,15 +65,15 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
       {parts.map((part) => {
         const partStories = part.chapters.reduce((n, c) => n + c.threads.reduce((m, t) => m + t.stories.length, 0), 0);
         return (
-          <div key={part.id} className="mb-5">
-            <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">
-              Part {part.order + 1}
-            </div>
-            <div className="text-ink font-medium mb-0.5">{part.title}</div>
-            <div className="text-xs text-ink-soft">
-              {part.chapters.length} chapter{part.chapters.length === 1 ? "" : "s"} · {partStories} stories
-            </div>
-          </div>
+          <PartListItem
+            key={part.id}
+            bookId={book.slug}
+            partId={part.id}
+            order={part.order}
+            title={part.title}
+            chapterCount={part.chapters.length}
+            storyCount={partStories}
+          />
         );
       })}
 

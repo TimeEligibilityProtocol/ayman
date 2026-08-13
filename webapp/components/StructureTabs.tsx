@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { RemoteEditableText } from "@/components/RemoteEditableText";
+import { DeleteButton } from "@/components/DeleteButton";
 
 interface Thread {
   id: string;
@@ -21,6 +23,7 @@ interface Part {
 
 export function StructureTabs({ bookId, parts }: { bookId: string; parts: Part[] }) {
   const [tab, setTab] = useState<"parts" | "chapters">("parts");
+  const router = useRouter();
 
   const allChapters = parts.flatMap((p) =>
     p.chapters.map((c) => ({ ...c, partTitle: p.title }))
@@ -50,7 +53,15 @@ export function StructureTabs({ bookId, parts }: { bookId: string; parts: Part[]
           );
           return (
             <div key={part.id} className="mb-6">
-              <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">Part {i + 1}</div>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="text-xs uppercase tracking-wide text-ink-soft">Part {i + 1}</div>
+                <DeleteButton
+                  endpoint={`/api/books/${bookId}/parts/${part.id}`}
+                  label="Remove part"
+                  confirmText="Remove this part? Its stories stay, just unplaced."
+                  onDeleted={() => router.refresh()}
+                />
+              </div>
               <RemoteEditableText
                 endpoint={`/api/books/${bookId}/parts/${part.id}`}
                 field="title"
@@ -66,7 +77,15 @@ export function StructureTabs({ bookId, parts }: { bookId: string; parts: Part[]
                   const chStoryCount = chapter.threads.reduce((m, t) => m + t.stories.length, 0);
                   return (
                     <div key={chapter.id} className="rounded-xl border border-border bg-card px-4 py-3">
-                      <div className="text-xs text-ink-soft">Chapter {ci + 1}</div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-xs text-ink-soft">Chapter {ci + 1}</div>
+                        <DeleteButton
+                          endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
+                          label="Remove"
+                          confirmText="Remove this chapter?"
+                          onDeleted={() => router.refresh()}
+                        />
+                      </div>
                       <RemoteEditableText
                         endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
                         field="title"
@@ -89,8 +108,16 @@ export function StructureTabs({ bookId, parts }: { bookId: string; parts: Part[]
             const storyCount = chapter.threads.reduce((m, t) => m + t.stories.length, 0);
             return (
               <div key={chapter.id} className="rounded-xl border border-border bg-card px-4 py-3">
-                <div className="text-xs text-ink-soft">
-                  Chapter {i + 1} · {chapter.partTitle}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-xs text-ink-soft">
+                    Chapter {i + 1} · {chapter.partTitle}
+                  </div>
+                  <DeleteButton
+                    endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
+                    label="Remove"
+                    confirmText="Remove this chapter?"
+                    onDeleted={() => router.refresh()}
+                  />
                 </div>
                 <RemoteEditableText
                   endpoint={`/api/books/${bookId}/chapters/${chapter.id}`}
