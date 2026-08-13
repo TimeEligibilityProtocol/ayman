@@ -25,8 +25,13 @@ const notoArabic = Noto_Sans_Arabic({
   subsets: ["arabic"],
 });
 
+// Render auto-injects RENDER_EXTERNAL_URL with the service's real public
+// URL — use that so link previews (WhatsApp, iMessage, etc.) work without
+// needing anyone to hand-set an env var. Falls back to localhost for dev.
+const siteUrl = process.env.RENDER_EXTERNAL_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: "Ayman — Every story matters",
   description: "Tell your story. Your Editor finds the book hidden inside it.",
   manifest: "/manifest.json",
@@ -38,6 +43,7 @@ export const metadata: Metadata = {
 
 export const viewport = {
   themeColor: "#241e36",
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
