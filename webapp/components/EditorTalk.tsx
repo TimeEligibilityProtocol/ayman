@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MicIcon } from "@/components/icons";
+import { DeleteButton } from "@/components/DeleteButton";
 
 interface Turn {
   id: string;
@@ -107,9 +108,20 @@ export function EditorTalk({
 
       {/* Conversation */}
       <div className="flex flex-col min-w-0 min-h-0">
-        <div className="px-5 md:px-8 pt-6 pb-3 border-b border-border shrink-0">
-          <h1 className="font-serif text-xl">Let&apos;s talk about your story</h1>
-          <p className="text-xs text-ink-soft mt-0.5">You speak, I listen. Together we find the story.</p>
+        <div className="px-5 md:px-8 pt-6 pb-3 border-b border-border shrink-0 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-xl">Let&apos;s talk about your story</h1>
+            <p className="text-xs text-ink-soft mt-0.5">You speak, I listen. Together we find the story.</p>
+          </div>
+          {turns.length > 0 && (
+            <DeleteButton
+              endpoint={`/api/books/${bookId}/editor/chat`}
+              label="Clear conversation"
+              confirmText="Clear this whole conversation?"
+              onDeleted={() => setTurns([])}
+              className="shrink-0"
+            />
+          )}
         </div>
 
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 md:px-8 py-5 space-y-4">

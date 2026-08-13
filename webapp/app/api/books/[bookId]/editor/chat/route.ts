@@ -35,3 +35,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ bookId: st
     );
   }
 }
+
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ bookId: string }> }) {
+  const { bookId } = await ctx.params;
+  const book = await getBookBySlugOrNull(bookId);
+  if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
+
+  await prisma.conversationTurn.deleteMany({ where: { bookId: book.id } });
+  return NextResponse.json({ ok: true });
+}
