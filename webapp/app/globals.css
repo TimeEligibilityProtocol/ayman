@@ -5,8 +5,8 @@
   --raw-cream: #f7f1e6;
   --raw-cream-soft: #fbf8f1;
   --raw-card: #ffffff;
-  --raw-ink: #29233a;
-  --raw-ink-soft: #635d70;
+  --raw-ink: #1f2a52;
+  --raw-ink-soft: #545b7a;
   --raw-navy: #241e36;
   --raw-navy-soft: #322a48;
   --raw-navy-softer: #3d3555;
@@ -36,6 +36,10 @@
   --font-sans: var(--font-inter);
   --font-arabic-serif: var(--font-amiri);
   --font-arabic-sans: var(--font-noto-arabic);
+}
+
+html {
+  -webkit-tap-highlight-color: rgba(31, 42, 82, 0.15);
 }
 
 body {
