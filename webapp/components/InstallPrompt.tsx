@@ -63,7 +63,7 @@ export function InstallPrompt() {
       <div className="flex-1 min-w-0">
         {!showIOSHelp ? (
           <>
-            <div className="text-sm text-ink font-medium">Install Ayman on your phone</div>
+            <div className="text-sm text-ink font-medium">Install app</div>
             <p className="text-xs text-ink-soft mt-0.5">
               One tap, and it lives on your home screen like a real app.
             </p>
