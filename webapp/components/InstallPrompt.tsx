@@ -18,7 +18,19 @@ export function InstallPrompt() {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (standalone) return;
+
+    // Once we've ever confirmed standalone (opened from the home-screen
+    // icon), remember it — the banner stays gone from then on, even when
+    // browsing normally in Safari. There's no browser signal for "the icon
+    // was removed", so this can't auto-clear; that's a real iOS limitation,
+    // not something we can detect our way around.
+    if (standalone) {
+      localStorage.setItem("ayman-installed", "1");
+      return;
+    }
+    if (localStorage.getItem("ayman-installed") === "1") {
+      return;
+    }
 
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
     setIsIOS(ios);
@@ -29,6 +41,7 @@ export function InstallPrompt() {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     }
     function onInstalled() {
+      localStorage.setItem("ayman-installed", "1");
       setInstalled(true);
     }
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
