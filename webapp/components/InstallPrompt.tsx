@@ -1,75 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import { useState } from "react";
+import { useInstallPrompt } from "@/lib/useInstallPrompt";
 
 export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isIOS, setIsIOS] = useState(false);
+  const { canInstall, promptInstall } = useInstallPrompt();
+  const [dismissed, setDismissed] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
-  const [dismissed, setDismissed] = useState(true); // start hidden until we know
-  const [installed, setInstalled] = useState(false);
-
-  useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-
-    // Once we've ever confirmed standalone (opened from the home-screen
-    // icon), remember it — the banner stays gone from then on, even when
-    // browsing normally in Safari. There's no browser signal for "the icon
-    // was removed", so this can't auto-clear; that's a real iOS limitation,
-    // not something we can detect our way around.
-    if (standalone) {
-      localStorage.setItem("ayman-installed", "1");
-      return;
-    }
-    if (localStorage.getItem("ayman-installed") === "1") {
-      return;
-    }
-
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
-    setIsIOS(ios);
-    setDismissed(false);
-
-    function onBeforeInstall(e: Event) {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    }
-    function onInstalled() {
-      localStorage.setItem("ayman-installed", "1");
-      setInstalled(true);
-    }
-    window.addEventListener("beforeinstallprompt", onBeforeInstall);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
-
-  function dismiss() {
-    // Only hides for the current visit — reappears next time until the app
-    // is actually installed. Ola wants it always there until real install.
-    setDismissed(true);
-  }
 
   async function handleInstall() {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      setDeferredPrompt(null);
-      if (outcome === "accepted") setInstalled(true);
-    } else if (isIOS) {
-      setShowIOSHelp(true);
-    }
+    const result = await promptInstall();
+    if (result === "ios-instructions") setShowIOSHelp(true);
   }
 
-  if (installed || dismissed || (!deferredPrompt && !isIOS)) return null;
+  if (!canInstall || dismissed) return null;
 
   return (
     <div className="mx-5 md:mx-10 mt-3 rounded-xl border border-gold-soft bg-gold-soft/30 px-4 py-3 flex items-start gap-3">
@@ -94,7 +38,10 @@ export function InstallPrompt() {
           </p>
         )}
       </div>
-      <button onClick={dismiss} className="text-ink-soft/60 hover:text-ink-soft text-xs shrink-0">
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-ink-soft/60 hover:text-ink-soft text-xs shrink-0"
+      >
         ✕
       </button>
     </div>
