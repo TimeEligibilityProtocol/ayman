@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { StoryListItem } from "@/components/StoryListItem";
+import { ExportButton } from "@/components/StructureActions";
 import { isToday, isYesterday, isThisWeek, format } from "date-fns";
 
 function groupLabel(date: Date) {
@@ -55,6 +56,16 @@ export default async function StoriesPage({ params }: { params: Promise<{ bookId
           </div>
         </div>
       ))}
+
+      {stories.length > 0 && (
+        <ExportButton
+          bookId={book.slug}
+          endpoint="recordings"
+          className="mt-2 inline-block text-sm rounded-full border border-border px-4 py-2 text-ink hover:border-gold"
+        >
+          Export recordings to Word (.docx)
+        </ExportButton>
+      )}
     </div>
   );
 }

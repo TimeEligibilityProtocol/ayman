@@ -84,12 +84,13 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
         </div>
       )}
 
-      {totalStories > 0 && (
+      {parts.length > 0 && (
         <ExportButton
           bookId={book.slug}
+          endpoint="manuscript"
           className="mt-6 inline-block text-sm rounded-full border border-border px-4 py-2 text-ink hover:border-gold"
         >
-          Export to Word (.docx)
+          Export book to Word (.docx)
         </ExportButton>
       )}
     </div>

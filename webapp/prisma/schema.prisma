@@ -128,7 +128,6 @@ model EditorNote {
   title     String
   body      String
   isNew     Boolean  @default(true)
-  status    String   @default("pending") // pending | accepted | dismissed
   createdAt DateTime @default(now())
 }
 

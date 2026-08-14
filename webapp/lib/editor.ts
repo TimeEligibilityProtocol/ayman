@@ -76,7 +76,7 @@ export async function analyzeNewStory(bookId: string, storyId: string) {
   const client = getAnthropicClient();
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 1500,
+    max_tokens: 6000,
     system: systemPrompt,
     tools: [RECORD_MEMORY_TOOL, QUEUE_EDITOR_NOTES_TOOL],
     messages: [{ role: "user", content: contextBlock }],

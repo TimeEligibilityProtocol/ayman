@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
-import { BackIcon } from "@/components/icons";
 import { EditorNotesList } from "@/components/EditorNotesList";
 
 export default async function EditorNotesPage({ params }: { params: Promise<{ bookId: string }> }) {
   const { bookId } = await params;
   const book = await getBookBySlug(bookId);
   const notes = await prisma.editorNote.findMany({
-    where: { bookId: book.id, status: "pending" },
+    where: { bookId: book.id },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
@@ -16,20 +15,28 @@ export default async function EditorNotesPage({ params }: { params: Promise<{ bo
   return (
     <div className="min-h-full bg-navy text-cream px-5 md:px-10 py-8 md:py-12">
       <div className="max-w-xl mx-auto">
+        <h1 className="font-serif text-2xl md:text-3xl mb-2">I&apos;ve been thinking about your stories.</h1>
+        <p className="text-cream/60 text-sm mb-8">
+          {notes.length > 0
+            ? "Here are some thoughts I'd like to explore with you."
+            : "Record a few stories and I'll start noticing things worth talking about."}
+        </p>
+
+        <div className="mb-8">
+          <EditorNotesList
+            bookId={book.slug}
+            initialNotes={notes}
+            dark
+            emptyMessage="Nothing queued right now."
+          />
+        </div>
+
         <Link
-          href={`/${book.slug}/editor`}
-          className="inline-flex items-center gap-1.5 text-xs text-cream/50 hover:text-cream/80 mb-6"
+          href={`/${book.slug}/editor/talk`}
+          className="flex items-center justify-center gap-2 w-full rounded-xl bg-gold text-navy font-medium py-3.5 hover:brightness-105 transition"
         >
-          <BackIcon className="w-3.5 h-3.5" />
-          Back
+          Let&apos;s talk
         </Link>
-        <h1 className="font-serif text-2xl md:text-3xl mb-6">All notes</h1>
-        <EditorNotesList
-          bookId={book.slug}
-          initialNotes={notes}
-          dark
-          emptyMessage="Nothing here — every note has been accepted or dismissed."
-        />
       </div>
     </div>
   );

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
-import { MicIcon, DocumentIcon, EditorIcon, BookIcon } from "@/components/icons";
+import { MicIcon, DocumentIcon, EditorIcon, ChatIcon, BookIcon } from "@/components/icons";
 
-const ICONS = { tell: MicIcon, stories: DocumentIcon, editor: EditorIcon, book: BookIcon };
+const ICONS = { tell: MicIcon, stories: DocumentIcon, notes: EditorIcon, talk: ChatIcon, book: BookIcon };
 
 export function NavSidebar({ bookId, displayName }: { bookId: string; displayName: string }) {
   const pathname = usePathname();

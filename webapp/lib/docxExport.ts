@@ -14,83 +14,31 @@ function formatDate(d: Date) {
 }
 
 /**
- * Builds a .docx with two clearly separated sections, per Ola's requirement:
- * the composed manuscript (approved stories, in book structure order) and
- * the raw recordings/transcripts (every story, verbatim, EN + AR), so
- * nothing captured is ever locked away in the app.
+ * Raw Recordings export — every Story, verbatim (original + EN + AR),
+ * regardless of book structure. Lives on the My Stories tab: whatever has
+ * been recorded so far, always downloadable as-is.
  */
-export async function buildBookDocx(bookId: string): Promise<Buffer> {
+export async function buildRawRecordingsDocx(bookId: string): Promise<Buffer> {
   const book = await prisma.book.findUniqueOrThrow({ where: { id: bookId } });
-  const parts = await prisma.part.findMany({
-    where: { bookId },
-    orderBy: { order: "asc" },
-    include: {
-      chapters: {
-        orderBy: { order: "asc" },
-        include: { threads: { include: { stories: { orderBy: { createdAt: "asc" } } } } },
-      },
-    },
-  });
-  const unplacedStories = await prisma.story.findMany({
-    where: { bookId, threadId: null },
-    orderBy: { createdAt: "asc" },
-  });
   const allStories = await prisma.story.findMany({
     where: { bookId },
     orderBy: { createdAt: "asc" },
   });
 
-  const children: Paragraph[] = [];
-
-  children.push(
+  const children: Paragraph[] = [
     new Paragraph({
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: book.title || `${book.displayName}'s Book`, font: "EB Garamond" })],
+      children: [new TextRun({ text: `${book.displayName}'s Recordings`, font: "EB Garamond" })],
     }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `by ${book.displayName}`, italics: true, font: "EB Garamond" })],
-    }),
-    new Paragraph({ children: [new PageBreak()] })
-  );
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
 
-  children.push(
-    new Paragraph({ heading: HeadingLevel.HEADING_1, text: "Manuscript" })
-  );
-
-  const hasStructure = parts.length > 0;
-  if (hasStructure) {
-    for (const part of parts) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: part.title }));
-      for (const chapter of part.chapters) {
-        children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: chapter.title }));
-        for (const thread of chapter.threads) {
-          for (const story of thread.stories) {
-            children.push(...storyBodyParagraphs(story));
-          }
-        }
-      }
-    }
-  }
-
-  if (unplacedStories.length > 0) {
-    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: "Unplaced Stories" }));
-    for (const story of unplacedStories) {
-      children.push(...storyBodyParagraphs(story));
-    }
-  }
-
-  if (!hasStructure && unplacedStories.length === 0) {
+  if (allStories.length === 0) {
     children.push(
       new Paragraph({ children: [new TextRun({ text: "No stories yet.", italics: true })] })
     );
   }
-
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(
-    new Paragraph({ heading: HeadingLevel.HEADING_1, text: "Raw Recordings & Transcripts" })
-  );
 
   for (const story of allStories) {
     children.push(
@@ -124,8 +72,69 @@ export async function buildBookDocx(bookId: string): Promise<Buffer> {
   }
 
   const doc = new Document({ sections: [{ children }] });
-  const buffer = await Packer.toBuffer(doc);
-  return buffer;
+  return Packer.toBuffer(doc);
+}
+
+/**
+ * Manuscript export — only the book as it's currently taking shape: Parts
+ * > Chapters > Threads, each Story shown as its approved text (or raw
+ * transcript, clearly marked, if not yet approved). Lives on the My Book
+ * tab. Never includes stories that don't belong to any structure yet —
+ * those are still "raw", not manuscript.
+ */
+export async function buildManuscriptDocx(bookId: string): Promise<Buffer> {
+  const book = await prisma.book.findUniqueOrThrow({ where: { id: bookId } });
+  const parts = await prisma.part.findMany({
+    where: { bookId },
+    orderBy: { order: "asc" },
+    include: {
+      chapters: {
+        orderBy: { order: "asc" },
+        include: { threads: { include: { stories: { orderBy: { createdAt: "asc" } } } } },
+      },
+    },
+  });
+
+  const children: Paragraph[] = [
+    new Paragraph({
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: book.title || `${book.displayName}'s Book`, font: "EB Garamond" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: `by ${book.displayName}`, italics: true, font: "EB Garamond" })],
+    }),
+    new Paragraph({ children: [new PageBreak()] }),
+  ];
+
+  if (parts.length === 0) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "No manuscript structure yet — ask your Editor to see the shape of the book.",
+            italics: true,
+          }),
+        ],
+      })
+    );
+  }
+
+  for (const part of parts) {
+    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: part.title }));
+    for (const chapter of part.chapters) {
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: chapter.title }));
+      for (const thread of chapter.threads) {
+        for (const story of thread.stories) {
+          children.push(...storyBodyParagraphs(story));
+        }
+      }
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  return Packer.toBuffer(doc);
 }
 
 function storyBodyParagraphs(story: { title: string | null; approvedText: string | null; transcriptOriginal: string | null; approvalState: string }) {

@@ -32,9 +32,20 @@ export function RegenerateStructureButton({
   );
 }
 
-export function ExportButton({ bookId, className, children }: { bookId: string; className?: string; children: React.ReactNode }) {
+export function ExportButton({
+  bookId,
+  endpoint,
+  className,
+  children,
+}: {
+  bookId: string;
+  endpoint?: "recordings" | "manuscript";
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const path = endpoint === "manuscript" ? `/api/books/${bookId}/export/manuscript` : `/api/books/${bookId}/export`;
   return (
-    <a href={`/api/books/${bookId}/export`} className={className}>
+    <a href={path} className={className}>
       {children}
     </a>
   );
