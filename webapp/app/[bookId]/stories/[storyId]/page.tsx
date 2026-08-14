@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { StoryDecision } from "@/components/StoryDecision";
 import { DeleteStoryButton } from "@/components/DeleteStoryButton";
 import { RemoteEditableText } from "@/components/RemoteEditableText";
 import { TranslateSection } from "@/components/TranslateSection";
+import { BackIcon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 
@@ -21,6 +23,13 @@ export default async function StoryDetailPage({
 
   return (
     <div className="px-5 md:px-10 py-6 md:py-10 max-w-2xl mx-auto">
+      <Link
+        href={`/${book.slug}/stories`}
+        className="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink mb-4"
+      >
+        <BackIcon className="w-3.5 h-3.5" />
+        My Stories
+      </Link>
       <div className="text-xs text-ink-soft mb-1">{format(story.createdAt, "d MMMM yyyy, HH:mm")}</div>
       <div className="mb-5">
         <RemoteEditableText
