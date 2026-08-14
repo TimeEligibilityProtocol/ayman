@@ -1,7 +1,20 @@
+import type { Metadata } from "next";
 import { getBookBySlug } from "@/lib/getBook";
 import { NavBottom } from "@/components/NavBottom";
 import { NavSidebar } from "@/components/NavSidebar";
 import { InstallPrompt } from "@/components/InstallPrompt";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ bookId: string }>;
+}): Promise<Metadata> {
+  const { bookId } = await params;
+  const book = await getBookBySlug(bookId);
+  return {
+    title: `${book.displayName} — Every story matters`,
+  };
+}
 
 export default async function BookLayout({
   children,
