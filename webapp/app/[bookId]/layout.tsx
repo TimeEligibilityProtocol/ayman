@@ -14,6 +14,15 @@ export async function generateMetadata({
   return {
     title: `${book.displayName} — Every story matters`,
     manifest: `/api/books/${bookId}/manifest`,
+    // The icon.tsx/apple-icon.tsx route-convention files stopped getting
+    // auto-linked once this layout defined its own generateMetadata —
+    // Safari had nothing to load for its "Add to Dock" preview and fell
+    // back to a generic auto-generated letter icon. Reference them
+    // explicitly so that can't happen regardless of Next's merge rules.
+    icons: {
+      icon: `/${bookId}/icon`,
+      apple: `/${bookId}/apple-icon`,
+    },
   };
 }
 
