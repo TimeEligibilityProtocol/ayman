@@ -13,6 +13,7 @@ export async function generateMetadata({
   const book = await getBookBySlug(bookId);
   return {
     title: `${book.displayName} — Every story matters`,
+    manifest: `/api/books/${bookId}/manifest`,
   };
 }
 
