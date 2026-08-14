@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlug } from "@/lib/getBook";
 import { StructureTabs } from "@/components/StructureTabs";
-import { ExportButton } from "@/components/StructureActions";
 import { BackIcon } from "@/components/icons";
 
 export default async function StructurePage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -24,13 +23,6 @@ export default async function StructurePage({ params }: { params: Promise<{ book
       </div>
 
       <StructureTabs bookId={book.slug} parts={parts} />
-
-      <ExportButton
-        bookId={book.slug}
-        className="mt-8 flex items-center justify-center w-full rounded-xl bg-navy text-cream font-medium py-3.5 hover:brightness-110 transition"
-      >
-        View book preview (.docx)
-      </ExportButton>
     </div>
   );
 }
