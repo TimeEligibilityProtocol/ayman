@@ -281,25 +281,59 @@ export async function setStoryDecision(
  */
 export async function proposeBookStructure(bookId: string) {
   const memory = await getStoryMemory(bookId);
+
+  // Stories already inside a locked Part are off the table entirely — the
+  // model only ever sees, and only ever regroups, stories that are either
+  // unplaced or sitting in a Part nobody has locked yet. It still needs to
+  // SEE the locked Parts (titles + what they cover) so the new material it
+  // proposes reads as one coherent book alongside them, not a mismatched
+  // add-on.
+  const lockedParts = await prisma.part.findMany({
+    where: { bookId, locked: true },
+    orderBy: { order: "asc" },
+    include: { chapters: { include: { threads: { include: { stories: true } } } } },
+  });
+  const lockedPartCount = lockedParts.length;
   const stories = await prisma.story.findMany({
-    where: { bookId, transcriptOriginal: { not: null } },
+    where: {
+      bookId,
+      transcriptOriginal: { not: null },
+      OR: [{ threadId: null }, { thread: { chapter: { part: { locked: false } } } }],
+    },
     select: { id: true, title: true, transcriptOriginal: true, approvedText: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
 
   if (stories.length === 0) {
-    return { parts: 0, chapters: 0, threads: 0 };
+    return { parts: lockedPartCount, chapters: 0, threads: 0, skippedLocked: lockedPartCount };
   }
+
+  const lockedBlock = lockedParts.length
+    ? "ALREADY-FINAL PARTS OF THIS BOOK (locked by the author — do not recreate, rename, or duplicate these; the new material you propose must read as belonging to the same book):\n" +
+      lockedParts
+        .map((p) => {
+          const chapterLines = p.chapters
+            .map((c) => `  - Chapter: "${c.title}" (${c.threads.reduce((n, t) => n + t.stories.length, 0)} stories)`)
+            .join("\n");
+          const noteLine = p.authorNote ? `\n  Author's guidance for what comes next: "${p.authorNote}"` : "";
+          return `- Part: "${p.title}"\n${chapterLines}${noteLine}`;
+        })
+        .join("\n")
+    : "";
 
   const contextBlock = [
     "STORY MEMORY:",
     JSON.stringify(memory, null, 2),
     "",
-    "ALL STORIES SO FAR (id, title, and either the approved text or the raw transcript):",
+    lockedBlock,
+    "",
+    "STORIES STILL TO PLACE (id, title, and either the approved text or the raw transcript):",
     ...stories.map(
       (s) => `- id="${s.id}" title="${s.title || "Untitled"}"\n  ${(s.approvedText || s.transcriptOriginal || "").slice(0, 600)}`
     ),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const client = getAnthropicClient();
   const response = await client.messages.create({
@@ -307,7 +341,7 @@ export async function proposeBookStructure(bookId: string) {
     max_tokens: 3000,
     system:
       getMasterPrompt() +
-      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in.",
+      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in.",
     tools: [PROPOSE_STRUCTURE_TOOL],
     tool_choice: { type: "tool", name: "propose_structure" },
     messages: [{ role: "user", content: contextBlock }],
@@ -325,17 +359,33 @@ export async function proposeBookStructure(bookId: string) {
     }>;
   };
 
-  // Unlink then wipe previous structure; story content is never touched.
-  await prisma.story.updateMany({ where: { bookId }, data: { threadId: null } });
-  await prisma.thread.deleteMany({ where: { bookId } });
-  await prisma.chapter.deleteMany({ where: { bookId } });
-  await prisma.part.deleteMany({ where: { bookId } });
+  // Wipe only the UNLOCKED parts of the previous structure — locked Parts
+  // (and everything under them) are left completely untouched. Story
+  // content itself is never touched either way.
+  const unlockedParts = await prisma.part.findMany({
+    where: { bookId, locked: false },
+    include: { chapters: true },
+  });
+  const unlockedChapterIds = unlockedParts.flatMap((p) => p.chapters.map((c) => c.id));
+  const unlockedThreads = await prisma.thread.findMany({ where: { chapterId: { in: unlockedChapterIds } } });
+  await prisma.story.updateMany({
+    where: { threadId: { in: unlockedThreads.map((t) => t.id) } },
+    data: { threadId: null },
+  });
+  await prisma.thread.deleteMany({ where: { chapterId: { in: unlockedChapterIds } } });
+  await prisma.chapter.deleteMany({ where: { id: { in: unlockedChapterIds } } });
+  await prisma.part.deleteMany({ where: { bookId, locked: false } });
+
+  const maxLockedOrder = await prisma.part.aggregate({ where: { bookId, locked: true }, _max: { order: true } });
+  const startOrder = (maxLockedOrder._max.order ?? -1) + 1;
 
   let chapterCount = 0;
   let threadCount = 0;
 
   for (const [partIdx, part] of proposal.parts.entries()) {
-    const createdPart = await prisma.part.create({ data: { bookId, title: part.title, order: partIdx } });
+    const createdPart = await prisma.part.create({
+      data: { bookId, title: part.title, order: startOrder + partIdx },
+    });
     for (const [chapterIdx, chapter] of part.chapters.entries()) {
       const createdChapter = await prisma.chapter.create({
         data: { bookId, partId: createdPart.id, title: chapter.title, order: chapterIdx },
@@ -356,7 +406,12 @@ export async function proposeBookStructure(bookId: string) {
     }
   }
 
-  return { parts: proposal.parts.length, chapters: chapterCount, threads: threadCount };
+  return {
+    parts: proposal.parts.length + lockedPartCount,
+    chapters: chapterCount,
+    threads: threadCount,
+    skippedLocked: lockedPartCount,
+  };
 }
 
 export async function translateAndTitleStory(

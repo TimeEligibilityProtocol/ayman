@@ -108,9 +108,11 @@ model Part {
   id       String    @id @default(cuid())
   bookId   String
   book     Book      @relation(fields: [bookId], references: [id])
-  title    String
-  order    Int       @default(0)
-  chapters Chapter[]
+  title       String
+  order       Int       @default(0)
+  locked      Boolean   @default(false) // "keep this" — excluded from future structure regeneration
+  authorNote  String? // guidance fed to the Editor when regenerating structure around this locked Part
+  chapters    Chapter[]
 
   createdAt DateTime @default(now())
 }

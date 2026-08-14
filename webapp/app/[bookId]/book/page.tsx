@@ -34,13 +34,21 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
             placeholder="Untitled — ask your Editor, or set one yourself"
           />
         </div>
-        <RegenerateStructureButton
-          bookId={book.slug}
-          className="shrink-0 w-8 h-8 rounded-full border border-border flex items-center justify-center text-ink-soft hover:border-gold hover:text-gold-deep"
-        >
-          +
-        </RegenerateStructureButton>
+        {totalStories > 0 && (
+          <RegenerateStructureButton
+            bookId={book.slug}
+            className="shrink-0 text-xs rounded-full border border-border px-3 py-1.5 text-ink-soft hover:border-gold hover:text-gold-deep"
+          >
+            Update structure
+          </RegenerateStructureButton>
+        )}
       </div>
+      {parts.length > 0 && (
+        <p className="text-xs text-ink-soft -mt-4 mb-6">
+          &quot;Update structure&quot; re-reads every unplaced story and re-groups them — Parts marked{" "}
+          <span className="text-gold-deep font-medium">Keep this</span> are never touched.
+        </p>
+      )}
 
       <div className="rounded-2xl border border-border bg-card p-5 mb-8 flex items-center justify-between gap-4">
         <div>
@@ -71,6 +79,8 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
             partId={part.id}
             order={part.order}
             title={part.title}
+            locked={part.locked}
+            authorNote={part.authorNote}
             chapterCount={part.chapters.length}
             storyCount={partStories}
           />

@@ -25,10 +25,10 @@ const notoArabic = Noto_Sans_Arabic({
   subsets: ["arabic"],
 });
 
-// Render auto-injects RENDER_EXTERNAL_URL with the service's real public
-// URL — use that so link previews (WhatsApp, iMessage, etc.) work without
-// needing anyone to hand-set an env var. Falls back to localhost for dev.
-const siteUrl = process.env.RENDER_EXTERNAL_URL || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// NEXT_PUBLIC_SITE_URL wins when set — it's the real custom domain once one
+// is connected. Render auto-injects RENDER_EXTERNAL_URL with the .onrender.com
+// URL as a fallback, so link previews still work before a custom domain exists.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

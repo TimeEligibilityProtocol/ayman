@@ -15,12 +15,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Part not found" }, { status: 404 });
   }
 
-  const { title } = (await req.json()) as { title?: string };
-  if (typeof title !== "string") {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
+  const body = (await req.json()) as { title?: string; locked?: boolean; authorNote?: string };
+  const data: { title?: string; locked?: boolean; authorNote?: string } = {};
+  if (typeof body.title === "string") data.title = body.title;
+  if (typeof body.locked === "boolean") data.locked = body.locked;
+  if (typeof body.authorNote === "string") data.authorNote = body.authorNote;
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "title, locked, or authorNote is required" }, { status: 400 });
   }
 
-  const updated = await prisma.part.update({ where: { id: partId }, data: { title } });
+  const updated = await prisma.part.update({ where: { id: partId }, data });
   return NextResponse.json({ part: updated });
 }
 
