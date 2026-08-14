@@ -95,13 +95,24 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
       )}
 
       {parts.length > 0 && (
-        <ExportButton
-          bookId={book.slug}
-          endpoint="manuscript"
-          className="mt-6 inline-block text-sm rounded-full border border-border px-4 py-2 text-ink hover:border-gold"
-        >
-          Export book to Word (.docx)
-        </ExportButton>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <ExportButton
+            bookId={book.slug}
+            endpoint="manuscript"
+            className="inline-block text-sm rounded-full border border-border px-4 py-2 text-ink hover:border-gold"
+          >
+            Export book to Word (.docx)
+          </ExportButton>
+          <ExportButton
+            bookId={book.slug}
+            endpoint="manuscript"
+            lang="en"
+            loadingLabel="Translating the whole book…"
+            className="inline-block text-sm rounded-full border border-border px-4 py-2 text-ink hover:border-gold"
+          >
+            Export book in English (.docx)
+          </ExportButton>
+        </div>
       )}
     </div>
   );

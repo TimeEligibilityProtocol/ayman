@@ -8,6 +8,7 @@ import {
   PageBreak,
 } from "docx";
 import { prisma } from "@/lib/prisma";
+import { translateStory } from "@/lib/editor";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -81,8 +82,13 @@ export async function buildRawRecordingsDocx(bookId: string): Promise<Buffer> {
  * transcript, clearly marked, if not yet approved). Lives on the My Book
  * tab. Never includes stories that don't belong to any structure yet —
  * those are still "raw", not manuscript.
+ *
+ * translateToEnglish: the book is always composed in whatever language the
+ * author actually spoke in — this is a separate, on-demand whole-book pass
+ * that translates a copy to English at export time, not a stored field.
+ * Stories already in English are left as-is.
  */
-export async function buildManuscriptDocx(bookId: string): Promise<Buffer> {
+export async function buildManuscriptDocx(bookId: string, translateToEnglish = false): Promise<Buffer> {
   const book = await prisma.book.findUniqueOrThrow({ where: { id: bookId } });
   const parts = await prisma.part.findMany({
     where: { bookId },
@@ -121,13 +127,22 @@ export async function buildManuscriptDocx(bookId: string): Promise<Buffer> {
     );
   }
 
+  async function maybeTranslate(text: string, language: string | null) {
+    if (!translateToEnglish || !text || language?.toLowerCase() === "english") return text;
+    try {
+      return (await translateStory(text, "english")) || text;
+    } catch {
+      return text;
+    }
+  }
+
   for (const part of parts) {
-    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: part.title }));
+    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: await maybeTranslate(part.title, null) }));
     for (const chapter of part.chapters) {
-      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: chapter.title }));
+      children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: await maybeTranslate(chapter.title, null) }));
       for (const thread of chapter.threads) {
         for (const story of thread.stories) {
-          children.push(...storyBodyParagraphs(story));
+          children.push(...(await storyBodyParagraphs(story, translateToEnglish ? maybeTranslate : undefined)));
         }
       }
     }
@@ -137,12 +152,21 @@ export async function buildManuscriptDocx(bookId: string): Promise<Buffer> {
   return Packer.toBuffer(doc);
 }
 
-function storyBodyParagraphs(story: { title: string | null; approvedText: string | null; transcriptOriginal: string | null; approvalState: string }) {
+async function storyBodyParagraphs(
+  story: {
+    title: string | null;
+    approvedText: string | null;
+    transcriptOriginal: string | null;
+    approvalState: string;
+    transcriptLanguage: string | null;
+  },
+  translate?: (text: string, language: string | null) => Promise<string>
+) {
   const paragraphs: Paragraph[] = [];
-  paragraphs.push(
-    new Paragraph({ heading: HeadingLevel.HEADING_3, text: story.title || "Untitled story" })
-  );
-  const text = story.approvedText || story.transcriptOriginal || "";
+  const title = translate ? await translate(story.title || "Untitled story", null) : story.title || "Untitled story";
+  paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, text: title }));
+  const rawText = story.approvedText || story.transcriptOriginal || "";
+  const text = translate ? await translate(rawText, story.transcriptLanguage) : rawText;
   if (story.approvalState !== "approved") {
     paragraphs.push(
       new Paragraph({

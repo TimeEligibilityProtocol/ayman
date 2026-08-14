@@ -353,11 +353,14 @@ export async function proposeBookStructure(bookId: string) {
   if (!toolBlock || toolBlock.type !== "tool_use") return { parts: 0, chapters: 0, threads: 0 };
 
   const proposal = toolBlock.input as {
-    parts: Array<{
+    parts?: Array<{
       title: string;
       chapters: Array<{ title: string; threads: Array<{ title: string; storyIds: string[] }> }>;
     }>;
   };
+  if (!Array.isArray(proposal.parts)) {
+    return { parts: lockedPartCount, chapters: 0, threads: 0, skippedLocked: lockedPartCount };
+  }
 
   // Wipe only the UNLOCKED parts of the previous structure — locked Parts
   // (and everything under them) are left completely untouched. Story
