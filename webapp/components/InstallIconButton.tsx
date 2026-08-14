@@ -8,13 +8,17 @@ import { useInstallPrompt } from "@/lib/useInstallPrompt";
 // absent) install icon — Ola specifically asked for this on desktop.
 export function InstallIconButton({ className }: { className?: string }) {
   const { canInstall, promptInstall } = useInstallPrompt();
-  const [showIOSHelp, setShowIOSHelp] = useState(false);
+  const [helpText, setHelpText] = useState<string | null>(null);
 
   if (!canInstall) return null;
 
   async function handleClick() {
     const result = await promptInstall();
-    if (result === "ios-instructions") setShowIOSHelp(true);
+    if (result === "ios-instructions") {
+      setHelpText('Tap the ••• icon in the toolbar, then Share, then "Add to Home Screen".');
+    } else if (result === "safari-instructions") {
+      setHelpText('Click the Share icon in Safari\'s toolbar, then "Add to Dock".');
+    }
   }
 
   return (
@@ -30,11 +34,10 @@ export function InstallIconButton({ className }: { className?: string }) {
           <path d="M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {showIOSHelp && (
+      {helpText && (
         <div className="absolute left-0 top-full mt-2 w-56 rounded-lg border border-border bg-card p-3 text-xs text-ink-soft shadow-lg z-10">
-          Tap the <strong>•••</strong> icon in the toolbar, then <strong>Share</strong>, then{" "}
-          <strong>&quot;Add to Home Screen&quot;</strong>.
-          <button onClick={() => setShowIOSHelp(false)} className="block mt-2 text-gold-deep hover:underline">
+          {helpText}
+          <button onClick={() => setHelpText(null)} className="block mt-2 text-gold-deep hover:underline">
             Got it
           </button>
         </div>
