@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlugOrNull } from "@/lib/getBook";
 import { transcribeAudio } from "@/lib/openai";
-import { translateAndTitleStory, analyzeNewStory } from "@/lib/editor";
+import { generateStoryTitle, analyzeNewStory } from "@/lib/editor";
 import { saveAudioFile } from "@/lib/storage";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ bookId: string }> }) {
@@ -53,21 +53,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ bookId: st
 
   const audioUrl = await saveAudioFile(book.slug, story.id, buffer, extension);
 
-  let english = "";
-  let arabic = "";
   let title = "Untitled story";
   try {
-    const result = await translateAndTitleStory(transcript.text);
-    english = result.english;
-    arabic = result.arabic;
-    title = result.title;
+    title = await generateStoryTitle(transcript.text);
   } catch (err) {
-    console.error("Translation/title generation failed:", err);
+    console.error("Title generation failed:", err);
   }
 
   const updated = await prisma.story.update({
     where: { id: story.id },
-    data: { audioUrl, transcriptEnglish: english, transcriptArabic: arabic, title },
+    data: { audioUrl, title },
   });
 
   try {

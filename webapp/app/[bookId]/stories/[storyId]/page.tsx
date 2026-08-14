@@ -3,6 +3,7 @@ import { getBookBySlug } from "@/lib/getBook";
 import { StoryDecision } from "@/components/StoryDecision";
 import { DeleteStoryButton } from "@/components/DeleteStoryButton";
 import { RemoteEditableText } from "@/components/RemoteEditableText";
+import { TranslateSection } from "@/components/TranslateSection";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 
@@ -65,29 +66,28 @@ export default async function StoryDetailPage({
         />
       </section>
 
-      <section className="mb-6">
-        <h2 className="text-xs uppercase tracking-wide text-ink-soft mb-2">English</h2>
-        <RemoteEditableText
-          endpoint={endpoint}
-          field="transcriptEnglish"
+      {story.transcriptLanguage?.toLowerCase() !== "english" && (
+        <TranslateSection
+          bookId={book.slug}
+          storyId={story.id}
+          language="english"
           value={story.transcriptEnglish || ""}
-          multiline
-          className="whitespace-pre-wrap leading-relaxed text-sm"
-          placeholder="No English translation yet."
+          label="English"
+          buttonLabel="Translate to English"
         />
-      </section>
+      )}
 
-      <section className="mb-6" dir="rtl">
-        <h2 className="text-xs uppercase tracking-wide text-ink-soft mb-2 text-right">العربية</h2>
-        <RemoteEditableText
-          endpoint={endpoint}
-          field="transcriptArabic"
+      {story.transcriptLanguage?.toLowerCase() !== "arabic" && (
+        <TranslateSection
+          bookId={book.slug}
+          storyId={story.id}
+          language="arabic"
           value={story.transcriptArabic || ""}
-          multiline
-          className="whitespace-pre-wrap leading-relaxed text-sm font-serif text-right"
-          placeholder="لا توجد ترجمة عربية بعد."
+          label="العربية"
+          buttonLabel="Translate to Arabic"
+          rtl
         />
-      </section>
+      )}
 
       <div className="pt-4 border-t border-border">
         <DeleteStoryButton bookId={book.slug} storyId={story.id} />

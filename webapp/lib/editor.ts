@@ -414,29 +414,47 @@ export async function proposeBookStructure(bookId: string) {
   };
 }
 
-export async function translateAndTitleStory(
-  transcript: string
-): Promise<{ english: string; arabic: string; title: string }> {
+/**
+ * Runs automatically right after recording — just a short title, in the
+ * story's own language. Translation is a separate, on-demand step (see
+ * translateStory below): most authors record and read in one language,
+ * so auto-translating every story into English and Arabic up front was
+ * clutter nobody asked for.
+ */
+export async function generateStoryTitle(transcript: string): Promise<string> {
+  const client = getAnthropicClient();
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 300,
+    system:
+      "Produce a short evocative title (2-6 words) for this spoken memoir/story fragment, in the same language the author used, e.g. 'Sunday with my Father'. Respond ONLY with the title text. No quotes, no commentary.",
+    messages: [{ role: "user", content: transcript }],
+  });
+  const text = response.content.find((b) => b.type === "text");
+  const title = text && "text" in text ? text.text.trim() : "";
+  return title || "Untitled story";
+}
+
+/**
+ * On-demand translation of one story into one target language, triggered
+ * by the author tapping "Translate to English/Arabic" — never automatic.
+ */
+export async function translateStory(
+  transcript: string,
+  language: "english" | "arabic"
+): Promise<string> {
   const client = getAnthropicClient();
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 2000,
     system:
-      "You translate spoken memoir/story transcripts. English should read natural, not literal. Arabic should sound natural to an Arabic reader, not mechanically translated — preserve meaning, tone, and names. Also produce a short evocative title (2-6 words) for this story fragment, e.g. 'Sunday with my Father'. Respond ONLY with JSON: {\"english\": string, \"arabic\": string, \"title\": string}. No markdown fences, no commentary.",
+      language === "english"
+        ? "You translate spoken memoir/story transcripts into English. It should read natural, not literal — preserve meaning, tone, and names. Respond ONLY with the translated text. No commentary, no markdown."
+        : "You translate spoken memoir/story transcripts into Arabic. It should sound natural to an Arabic reader, not mechanically translated — preserve meaning, tone, and names. Respond ONLY with the translated text. No commentary, no markdown.",
     messages: [{ role: "user", content: transcript }],
   });
   const text = response.content.find((b) => b.type === "text");
-  const raw = text && "text" in text ? text.text : "{}";
-  try {
-    const parsed = JSON.parse(raw.trim());
-    return {
-      english: parsed.english || "",
-      arabic: parsed.arabic || "",
-      title: parsed.title || "Untitled story",
-    };
-  } catch {
-    return { english: "", arabic: "", title: "Untitled story" };
-  }
+  return text && "text" in text ? text.text.trim() : "";
 }
 
 export type { Book };
