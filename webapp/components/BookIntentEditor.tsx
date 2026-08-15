@@ -13,126 +13,179 @@ interface Intent {
   hardConstraints: string[];
 }
 
-const BOOK_FORMS = ["memoir", "autobiography", "family_history", "collection", "narrative_nonfiction", "hybrid"];
-const STRUCTURE_PREFS = ["chronological", "thematic", "cinematic", "mosaic"];
+function Chip({ text, onRemove }: { text: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft border border-border px-3 py-1 text-xs">
+      {text}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="usuń"
+        className="text-ink-soft hover:text-red-600 leading-none"
+      >
+        ×
+      </button>
+    </span>
+  );
+}
 
-function ListField({
+function ListGroup({
   label,
-  placeholder,
-  value,
-  onSave,
+  hint,
+  items,
+  onChange,
 }: {
   label: string;
-  placeholder: string;
-  value: string[];
-  onSave: (lines: string[]) => void;
+  hint: string;
+  items: string[];
+  onChange: (items: string[]) => void;
 }) {
-  const [text, setText] = useState(value.join("\n"));
-  const [saved, setSaved] = useState(true);
+  const [draft, setDraft] = useState("");
+
+  function add() {
+    const value = draft.trim();
+    if (!value) return;
+    onChange([...items, value]);
+    setDraft("");
+  }
 
   return (
-    <div className="mb-4">
-      <label className="block text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</label>
-      <textarea
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setSaved(false);
-        }}
-        onBlur={() => {
-          onSave(text.split("\n").map((l) => l.trim()).filter(Boolean));
-          setSaved(true);
-        }}
-        placeholder={placeholder}
-        rows={2}
-        className="w-full rounded-lg border border-border bg-cream-soft px-3 py-2 text-sm outline-none focus:border-gold resize-y"
-      />
-      {!saved && <span className="text-[10px] text-ink-soft/60">unsaved — click away to save</span>}
+    <div className="mb-5">
+      <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</div>
+      <p className="text-[11px] text-ink-soft/70 mb-2">{hint}</p>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {items.map((item, i) => (
+          <Chip key={`${item}-${i}`} text={item} onRemove={() => onChange(items.filter((_, j) => j !== i))} />
+        ))}
+        {items.length === 0 && <span className="text-xs text-ink-soft/50 italic">jeszcze nic tu nie ma</span>}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="+ dopisz ręcznie"
+          className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
+        />
+      </div>
+    </div>
+  );
+}
+
+function SingleField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  return (
+    <div className="mb-5">
+      <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</div>
+      <p className="text-[11px] text-ink-soft/70 mb-2">{hint}</p>
+      {value ? (
+        <Chip text={value} onRemove={() => onChange(null)} />
+      ) : (
+        <div className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (draft.trim()) {
+                  onChange(draft.trim());
+                  setDraft("");
+                }
+              }
+            }}
+            placeholder="jeszcze nie ustalone — dopisz albo poczekaj aż ustalicie to w rozmowie"
+            className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 export function BookIntentEditor({ bookId, intent }: { bookId: string; intent: Intent }) {
   const router = useRouter();
+  const [saving, setSaving] = useState(false);
 
   async function save(patch: Partial<Intent>) {
+    setSaving(true);
     await fetch(`/api/books/${bookId}/intent`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
     router.refresh();
+    setSaving(false);
   }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 mb-8">
-      <h2 className="font-serif text-lg mb-1">The book we're building</h2>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-serif text-lg">Co już ustaliliście</h2>
+        {saving && <span className="text-[10px] text-ink-soft/60">zapisuję…</span>}
+      </div>
       <p className="text-xs text-ink-soft mb-4">
-        This shapes how the Editor writes and structures the book — not just what goes in it.
+        To wypełnia się samo, kiedy w rozmowie z Edytorem (zakładka Talk) coś potwierdzicie — tytuł, styl,
+        temat. Możesz też dopisać coś ręcznie albo usunąć (×), jeśli się nie zgadzasz.
       </p>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <label className="block text-xs uppercase tracking-wide text-ink-soft mb-1">Form</label>
-          <select
-            value={intent.bookForm || ""}
-            onChange={(e) => save({ bookForm: e.target.value })}
-            className="w-full rounded-lg border border-border bg-cream-soft px-3 py-2 text-sm outline-none focus:border-gold"
-          >
-            <option value="">Not set</option>
-            {BOOK_FORMS.map((f) => (
-              <option key={f} value={f}>
-                {f.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs uppercase tracking-wide text-ink-soft mb-1">Structure</label>
-          <select
-            value={intent.structurePreference || ""}
-            onChange={(e) => save({ structurePreference: e.target.value })}
-            className="w-full rounded-lg border border-border bg-cream-soft px-3 py-2 text-sm outline-none focus:border-gold"
-          >
-            <option value="">Not set</option>
-            {STRUCTURE_PREFS.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <ListField
-        label="Voice — one instruction per line"
-        placeholder={"e.g. Don't make me sound sentimental\nKeep my humour\nI like short chapters"}
-        value={intent.voiceNotes}
-        onSave={(voiceNotes) => save({ voiceNotes })}
+      <SingleField
+        label="Forma książki"
+        hint="np. pamiętnik, historia rodzinna — ustala się, gdy to potwierdzicie w rozmowie"
+        value={intent.bookForm}
+        onChange={(bookForm) => save({ bookForm: bookForm ?? "" })}
       />
-      <ListField
-        label="Themes I want kept"
-        placeholder="one per line"
-        value={intent.acceptedThemes}
-        onSave={(acceptedThemes) => save({ acceptedThemes })}
+      <SingleField
+        label="Układ książki"
+        hint="np. chronologicznie, tematycznie — ustala się, gdy to potwierdzicie w rozmowie"
+        value={intent.structurePreference}
+        onChange={(structurePreference) => save({ structurePreference: structurePreference ?? "" })}
       />
-      <ListField
-        label="Themes to leave out — the Editor won't build the book around these"
-        placeholder="one per line"
-        value={intent.rejectedThemes}
-        onSave={(rejectedThemes) => save({ rejectedThemes })}
+      <ListGroup
+        label="Tytuły, które się podobają"
+        hint="propozycje, które zaakceptowaliście w rozmowie"
+        items={intent.titlePreferences}
+        onChange={(titlePreferences) => save({ titlePreferences })}
       />
-      <ListField
-        label="Title ideas I like"
-        placeholder="one per line"
-        value={intent.titlePreferences}
-        onSave={(titlePreferences) => save({ titlePreferences })}
+      <ListGroup
+        label="Styl / głos"
+        hint="jak Edytor ma pisać — np. „nie pisz smutno”, „krótkie rozdziały”"
+        items={intent.voiceNotes}
+        onChange={(voiceNotes) => save({ voiceNotes })}
       />
-      <ListField
-        label="Hard constraints — never violate these"
-        placeholder="one per line"
-        value={intent.hardConstraints}
-        onSave={(hardConstraints) => save({ hardConstraints })}
+      <ListGroup
+        label="Tematy do zachowania"
+        hint="rzeczy, które na pewno mają być w książce"
+        items={intent.acceptedThemes}
+        onChange={(acceptedThemes) => save({ acceptedThemes })}
+      />
+      <ListGroup
+        label="Tematy do pominięcia"
+        hint="Edytor nie będzie tego wplatał do książki"
+        items={intent.rejectedThemes}
+        onChange={(rejectedThemes) => save({ rejectedThemes })}
+      />
+      <ListGroup
+        label="Twarde zasady"
+        hint="rzeczy, których Edytor nigdy nie może złamać"
+        items={intent.hardConstraints}
+        onChange={(hardConstraints) => save({ hardConstraints })}
       />
     </div>
   );

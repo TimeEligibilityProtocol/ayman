@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getAnthropicClient, getMasterPrompt, MODEL } from "@/lib/anthropic";
 import { RECORD_MEMORY_TOOL, mergeMemory, type StoryMemoryData, type MemoryUpdate } from "@/lib/memorySchema";
-import { QUEUE_EDITOR_NOTES_TOOL, PROPOSE_STRUCTURE_TOOL } from "@/lib/editorTools";
+import { QUEUE_EDITOR_NOTES_TOOL, PROPOSE_STRUCTURE_TOOL, UPDATE_BOOK_INTENT_TOOL } from "@/lib/editorTools";
 import { retrieveRelevant } from "@/lib/retrieval";
 import { effectiveTranscript } from "@/lib/storyText";
 import type { Book, Story, BookIntent } from "@prisma/client";
@@ -50,6 +50,49 @@ function buildIntentBlock(intent: BookIntent | null): string {
   if (intent.titlePreferences.length) lines.push(`Title preferences: ${intent.titlePreferences.join(", ")}`);
   if (intent.hardConstraints.length) lines.push(`Hard constraints (never violate): ${intent.hardConstraints.join(", ")}`);
   return lines.length > 1 ? lines.join("\n") : "";
+}
+
+const INTENT_STRING_FIELDS = ["bookForm", "structurePreference"] as const;
+const INTENT_LIST_FIELDS = [
+  "voiceNotes",
+  "acceptedThemes",
+  "rejectedThemes",
+  "titlePreferences",
+  "hardConstraints",
+] as const;
+
+/**
+ * Applied when the Editor calls update_book_intent mid-conversation — the
+ * author just confirmed something (a title, a style rule, a theme to keep
+ * or drop). List fields are additive/deduped, never a wholesale replace, so
+ * one confirmed item can't accidentally wipe earlier ones the author hasn't
+ * touched. Removing something is a deliberate action the author takes in
+ * the Book Intent panel itself, not something a chat turn can do.
+ */
+async function applyIntentUpdate(bookId: string, patch: Record<string, unknown>) {
+  const existing = await prisma.bookIntent.findUnique({ where: { bookId } });
+  const data: Record<string, unknown> = {};
+
+  for (const field of INTENT_STRING_FIELDS) {
+    if (typeof patch[field] === "string" && (patch[field] as string).trim()) {
+      data[field] = (patch[field] as string).trim();
+    }
+  }
+  for (const field of INTENT_LIST_FIELDS) {
+    const incoming = patch[field];
+    if (Array.isArray(incoming) && incoming.every((v) => typeof v === "string")) {
+      const existingList = (existing?.[field] as string[] | undefined) || [];
+      const merged = Array.from(new Set([...existingList, ...incoming.map((s) => s.trim()).filter(Boolean)]));
+      data[field] = merged;
+    }
+  }
+  if (Object.keys(data).length === 0) return;
+
+  await prisma.bookIntent.upsert({
+    where: { bookId },
+    update: data,
+    create: { bookId, ...data },
+  });
 }
 
 /**
@@ -204,24 +247,33 @@ export async function chatWithEditor(bookId: string, userText: string): Promise<
 
   const systemPrompt =
     getMasterPrompt() +
-    "\n\nAfter your reply text, always call record_memory_update with anything new learned this turn. If truly nothing is new, call it with an empty object.";
+    "\n\nAfter your reply text, always call record_memory_update with anything new learned this turn. If truly nothing is new, call it with an empty object." +
+    "\n\nIf the author has just clearly confirmed or agreed to something about how THIS BOOK should be written — a title they like, its form, how they want it organized, a style/voice instruction, a theme to keep or leave out, or a hard rule — also call update_book_intent with just that. Only for a clear, just-happened confirmation ('yes, let's call it that', 'I like that structure', 'don't mention X') — not for ideas still being explored or casual mentions.";
 
   const client = getAnthropicClient();
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 2000,
     system: systemPrompt,
-    tools: [RECORD_MEMORY_TOOL],
+    tools: [RECORD_MEMORY_TOOL, UPDATE_BOOK_INTENT_TOOL],
     messages: [{ role: "user", content: contextBlock }],
   });
 
   let replyText = "";
   let memoryUpdate: MemoryUpdate | null = null;
+  let intentUpdate: Record<string, unknown> | null = null;
   for (const block of response.content) {
     if (block.type === "text") replyText += block.text;
     if (block.type === "tool_use" && block.name === "record_memory_update") {
       memoryUpdate = block.input as MemoryUpdate;
     }
+    if (block.type === "tool_use" && block.name === "update_book_intent") {
+      intentUpdate = block.input as Record<string, unknown>;
+    }
+  }
+
+  if (intentUpdate) {
+    await applyIntentUpdate(bookId, intentUpdate);
   }
 
   await prisma.conversationTurn.create({ data: { bookId, role: "user", text: userText } });

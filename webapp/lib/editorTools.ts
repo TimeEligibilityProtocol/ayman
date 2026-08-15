@@ -24,6 +24,25 @@ export const QUEUE_EDITOR_NOTES_TOOL = {
   },
 };
 
+export const UPDATE_BOOK_INTENT_TOOL = {
+  name: "update_book_intent",
+  description:
+    "Call this ONLY when the author has just clearly confirmed or agreed to something about how their book should be written or structured — a title they like, the book's form, how they want it organized, a style/voice instruction, a theme to keep or leave out, or a hard rule. Do not call this for ideas still being explored, casual mentions, or anything not clearly just agreed to. Only include the fields that were actually just confirmed — omit everything else.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      titlePreferences: { type: "array", items: { type: "string" }, description: "Title(s) the author just said they like." },
+      bookForm: { type: "string", description: "Only if the author just confirmed the form of the book, e.g. memoir, autobiography, family history, collection." },
+      structurePreference: { type: "string", description: "Only if the author just confirmed how they want the book organized, e.g. chronological, thematic, cinematic, mosaic." },
+      voiceNotes: { type: "array", items: { type: "string" }, description: "Style/voice instructions the author just gave, e.g. 'Don't make me sound sentimental'." },
+      acceptedThemes: { type: "array", items: { type: "string" }, description: "Themes the author just confirmed they want kept." },
+      rejectedThemes: { type: "array", items: { type: "string" }, description: "Themes/topics the author just said to leave out." },
+      hardConstraints: { type: "array", items: { type: "string" }, description: "Rules the author says must never be violated." },
+    },
+    required: [],
+  },
+};
+
 export const PROPOSE_STRUCTURE_TOOL = {
   name: "propose_structure",
   description:
