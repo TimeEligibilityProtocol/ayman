@@ -81,8 +81,20 @@ export function useInstallPrompt() {
       }
       return "prompted";
     }
-    if (isIOS) return "ios-instructions";
-    if (isSafariDesktop) return "safari-instructions";
+    // iOS/Safari desktop give no signal that the manual steps were actually
+    // completed — so once we've handed off instructions, mark it dismissed
+    // for FUTURE visits (localStorage only, not the live `dismissed` state)
+    // so the banner doesn't keep coming back every time the tab reopens.
+    // It stays visible for the rest of THIS session so she can still read
+    // the steps she just asked for.
+    if (isIOS) {
+      localStorage.setItem(DISMISSED_KEY, "1");
+      return "ios-instructions";
+    }
+    if (isSafariDesktop) {
+      localStorage.setItem(DISMISSED_KEY, "1");
+      return "safari-instructions";
+    }
     return "unavailable";
   }
 
