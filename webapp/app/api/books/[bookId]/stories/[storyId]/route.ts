@@ -3,9 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getBookBySlugOrNull } from "@/lib/getBook";
 import { deleteAudioFile } from "@/lib/storage";
 
+// transcriptOriginal is deliberately excluded — it's the verbatim source
+// and must never be overwritten via this endpoint. Fixing a transcription
+// mistake goes through transcriptCorrected instead, so the original is
+// always still there if something needs to be re-processed later.
 const EDITABLE_FIELDS = [
   "title",
-  "transcriptOriginal",
+  "transcriptCorrected",
   "transcriptEnglish",
   "transcriptArabic",
   "approvedText",

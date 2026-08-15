@@ -65,13 +65,23 @@ export default async function StoryDetailPage({
 
       <section className="mb-6">
         <h2 className="text-xs uppercase tracking-wide text-ink-soft mb-2">Original transcript</h2>
+        <p className="whitespace-pre-wrap leading-relaxed text-ink-soft text-sm">
+          {story.transcriptOriginal || "Still transcribing…"}
+        </p>
+        <p className="text-[11px] text-ink-soft/60 mt-1.5 italic">
+          The verbatim recording — never edited, so you can always come back to exactly what was said.
+        </p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-xs uppercase tracking-wide text-ink-soft mb-2">Fix transcription mistakes</h2>
         <RemoteEditableText
           endpoint={endpoint}
-          field="transcriptOriginal"
-          value={story.transcriptOriginal || ""}
+          field="transcriptCorrected"
+          value={story.transcriptCorrected || ""}
           multiline
-          className="whitespace-pre-wrap leading-relaxed text-ink-soft text-sm"
-          placeholder="Still transcribing…"
+          className="whitespace-pre-wrap leading-relaxed text-ink text-sm"
+          placeholder="Tap to fix any mis-heard words — the original above stays untouched."
         />
       </section>
 

@@ -53,11 +53,16 @@ model Story {
   audioUrl    String?
   durationSec Int?
 
-  // ORIGINAL MEMORY layer — never edited after creation
-  transcriptOriginal String?
-  transcriptLanguage String?
-  transcriptEnglish  String?
-  transcriptArabic   String?
+  // ORIGINAL MEMORY layer — never edited after creation. The API must never
+  // let transcriptOriginal itself be overwritten; transcriptCorrected is the
+  // editable copy for fixing transcription mistakes without touching the
+  // verbatim source (which everything downstream falls back to if no
+  // correction/approval exists yet).
+  transcriptOriginal  String?
+  transcriptCorrected String?
+  transcriptLanguage  String?
+  transcriptEnglish   String?
+  transcriptArabic    String?
 
   // EDITORIAL WORKSPACE + APPROVED STORY layers
   approvalState String  @default("pending") // pending | approved | exploring | not_quite | deferred

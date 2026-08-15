@@ -3,6 +3,7 @@ import { getAnthropicClient, getMasterPrompt, MODEL } from "@/lib/anthropic";
 import { RECORD_MEMORY_TOOL, mergeMemory, type StoryMemoryData, type MemoryUpdate } from "@/lib/memorySchema";
 import { QUEUE_EDITOR_NOTES_TOOL, PROPOSE_STRUCTURE_TOOL } from "@/lib/editorTools";
 import { retrieveRelevant } from "@/lib/retrieval";
+import { effectiveTranscript } from "@/lib/storyText";
 import type { Book, Story } from "@prisma/client";
 
 const RECENT_TURNS_WINDOW = 6; // messages (user+editor combined)
@@ -38,13 +39,13 @@ export async function analyzeNewStory(bookId: string, storyId: string) {
 
   const otherStories = await prisma.story.findMany({
     where: { bookId, id: { not: storyId }, transcriptOriginal: { not: null } },
-    select: { id: true, title: true, transcriptOriginal: true, createdAt: true },
+    select: { id: true, title: true, transcriptOriginal: true, transcriptCorrected: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
   const related = retrieveRelevant(
-    otherStories.map((s) => ({ id: s.id, text: s.transcriptOriginal || "" })),
-    story.transcriptOriginal || "",
+    otherStories.map((s) => ({ id: s.id, text: effectiveTranscript(s) })),
+    effectiveTranscript(story),
     RETRIEVAL_TOP_K
   );
   const relatedStories = otherStories.filter((s) => related.some((r) => r.id === s.id));
@@ -57,12 +58,12 @@ export async function analyzeNewStory(bookId: string, storyId: string) {
     "",
     relatedStories.length
       ? "RELATED EARLIER STORIES (verbatim, ground truth):\n" +
-        relatedStories.map((s) => `- ${storyLabel(s)}: "${s.transcriptOriginal}"`).join("\n")
+        relatedStories.map((s) => `- ${storyLabel(s)}: "${effectiveTranscript(s)}"`).join("\n")
       : "",
     "[END CONTEXT]",
     "",
     `NEW STORY JUST RECORDED — "${story.title || "Untitled"}":`,
-    story.transcriptOriginal || "",
+    effectiveTranscript(story),
   ]
     .filter(Boolean)
     .join("\n");
@@ -136,12 +137,12 @@ export async function chatWithEditor(bookId: string, userText: string): Promise<
 
   const allStories = await prisma.story.findMany({
     where: { bookId, transcriptOriginal: { not: null } },
-    select: { id: true, title: true, transcriptOriginal: true, createdAt: true },
+    select: { id: true, title: true, transcriptOriginal: true, transcriptCorrected: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: 100,
   });
   const related = retrieveRelevant(
-    allStories.map((s) => ({ id: s.id, text: s.transcriptOriginal || "" })),
+    allStories.map((s) => ({ id: s.id, text: effectiveTranscript(s) })),
     userText,
     RETRIEVAL_TOP_K
   );
@@ -162,7 +163,7 @@ export async function chatWithEditor(bookId: string, userText: string): Promise<
     "",
     relatedStories.length
       ? "RELEVANT PAST STORIES (verbatim, ground truth):\n" +
-        relatedStories.map((s) => `- ${storyLabel(s)}: "${s.transcriptOriginal}"`).join("\n")
+        relatedStories.map((s) => `- ${storyLabel(s)}: "${effectiveTranscript(s)}"`).join("\n")
       : "",
     recentTurns.length
       ? "RECENT CONVERSATION:\n" +
@@ -253,11 +254,11 @@ export async function approveStory(storyId: string): Promise<string> {
     system:
       getMasterPrompt() +
       `\n\nWRITING MODE. The author has approved this story to become part of their manuscript. Editing intensity: ${intensity}. ${instruction} Never invent facts. Respond with ONLY the edited text, no preamble, no commentary.`,
-    messages: [{ role: "user", content: story.transcriptOriginal || "" }],
+    messages: [{ role: "user", content: effectiveTranscript(story) }],
   });
 
   const text = response.content.find((b) => b.type === "text");
-  const approvedText = text && "text" in text ? text.text.trim() : story.transcriptOriginal || "";
+  const approvedText = text && "text" in text ? text.text.trim() : effectiveTranscript(story);
 
   await prisma.story.update({
     where: { id: storyId },
@@ -300,7 +301,14 @@ export async function proposeBookStructure(bookId: string) {
       transcriptOriginal: { not: null },
       OR: [{ threadId: null }, { thread: { chapter: { part: { locked: false } } } }],
     },
-    select: { id: true, title: true, transcriptOriginal: true, approvedText: true, createdAt: true },
+    select: {
+      id: true,
+      title: true,
+      transcriptOriginal: true,
+      transcriptCorrected: true,
+      approvedText: true,
+      createdAt: true,
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -329,7 +337,7 @@ export async function proposeBookStructure(bookId: string) {
     "",
     "STORIES STILL TO PLACE (id, title, and either the approved text or the raw transcript):",
     ...stories.map(
-      (s) => `- id="${s.id}" title="${s.title || "Untitled"}"\n  ${(s.approvedText || s.transcriptOriginal || "").slice(0, 600)}`
+      (s) => `- id="${s.id}" title="${s.title || "Untitled"}"\n  ${(s.approvedText || effectiveTranscript(s)).slice(0, 600)}`
     ),
   ]
     .filter(Boolean)

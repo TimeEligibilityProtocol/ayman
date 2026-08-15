@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlugOrNull } from "@/lib/getBook";
 import { translateStory } from "@/lib/editor";
+import { effectiveTranscript } from "@/lib/storyText";
 
 export async function POST(
   req: NextRequest,
@@ -25,7 +26,7 @@ export async function POST(
   }
 
   try {
-    const translated = await translateStory(story.transcriptOriginal, language);
+    const translated = await translateStory(effectiveTranscript(story), language);
     const field = language === "english" ? "transcriptEnglish" : "transcriptArabic";
     const updated = await prisma.story.update({ where: { id: storyId }, data: { [field]: translated } });
     return NextResponse.json({ story: updated });

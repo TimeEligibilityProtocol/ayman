@@ -9,6 +9,7 @@ import {
 } from "docx";
 import { prisma } from "@/lib/prisma";
 import { translateStory } from "@/lib/editor";
+import { effectiveTranscript } from "@/lib/storyText";
 
 function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -52,6 +53,12 @@ export async function buildRawRecordingsDocx(bookId: string): Promise<Buffer> {
       children.push(
         new Paragraph({ children: [new TextRun({ text: "Original transcript", bold: true })] }),
         new Paragraph({ text: story.transcriptOriginal })
+      );
+    }
+    if (story.transcriptCorrected) {
+      children.push(
+        new Paragraph({ children: [new TextRun({ text: "Corrected transcript", bold: true })] }),
+        new Paragraph({ text: story.transcriptCorrected })
       );
     }
     if (story.transcriptEnglish) {
@@ -157,6 +164,7 @@ async function storyBodyParagraphs(
     title: string | null;
     approvedText: string | null;
     transcriptOriginal: string | null;
+    transcriptCorrected: string | null;
     approvalState: string;
     transcriptLanguage: string | null;
   },
@@ -165,7 +173,7 @@ async function storyBodyParagraphs(
   const paragraphs: Paragraph[] = [];
   const title = translate ? await translate(story.title || "Untitled story", null) : story.title || "Untitled story";
   paragraphs.push(new Paragraph({ heading: HeadingLevel.HEADING_3, text: title }));
-  const rawText = story.approvedText || story.transcriptOriginal || "";
+  const rawText = story.approvedText || effectiveTranscript(story);
   const text = translate ? await translate(rawText, story.transcriptLanguage) : rawText;
   if (story.approvalState !== "approved") {
     paragraphs.push(
