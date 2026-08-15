@@ -7,7 +7,7 @@ export default async function EditorNotesPage({ params }: { params: Promise<{ bo
   const { bookId } = await params;
   const book = await getBookBySlug(bookId);
   const notes = await prisma.editorNote.findMany({
-    where: { bookId: book.id },
+    where: { bookId: book.id, status: "pending" },
     orderBy: { createdAt: "desc" },
     take: 100,
   });

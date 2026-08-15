@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getBookBySlugOrNull } from "@/lib/getBook";
 
-// Accept and Dismiss both permanently delete the note — consistent with
-// how Stories and conversation turns are removed elsewhere in the app.
-// Nothing reads a resolved note's status afterward, so there's no reason
-// to keep a "dismissed"/"accepted" row sitting in the database.
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ bookId: string; noteId: string }> }) {
+const VALID_STATUSES = new Set(["accepted", "rejected"]);
+
+// Accept and Reject are distinct signals, not both "make it go away": an
+// accepted note reinforces the book's direction, a rejected one tells the
+// Editor not to build on it — both are real evidence, so neither deletes
+// the row. Only the "pending" list (what the author actually sees) filters
+// them out; future structure generation can still read rejected notes to
+// avoid re-proposing what was already turned down.
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ bookId: string; noteId: string }> }
+) {
   const { bookId, noteId } = await ctx.params;
   const book = await getBookBySlugOrNull(bookId);
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
@@ -16,6 +23,11 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ bookId:
     return NextResponse.json({ error: "Note not found" }, { status: 404 });
   }
 
-  await prisma.editorNote.delete({ where: { id: noteId } });
-  return NextResponse.json({ ok: true });
+  const { status } = (await req.json()) as { status?: string };
+  if (!status || !VALID_STATUSES.has(status)) {
+    return NextResponse.json({ error: "status must be 'accepted' or 'rejected'" }, { status: 400 });
+  }
+
+  const updated = await prisma.editorNote.update({ where: { id: noteId }, data: { status } });
+  return NextResponse.json({ note: updated });
 }

@@ -23,11 +23,15 @@ export function EditorNoteCard({
 }) {
   const [busy, setBusy] = useState<"accept" | "dismiss" | null>(null);
 
-  async function resolve(kind: "accepted" | "dismissed") {
+  async function resolve(status: "accepted" | "rejected") {
     if (busy) return;
-    setBusy(kind === "accepted" ? "accept" : "dismiss");
+    setBusy(status === "accepted" ? "accept" : "dismiss");
     try {
-      const res = await fetch(`/api/books/${bookId}/editor/notes/${note.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/books/${bookId}/editor/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
       if (!res.ok) throw new Error();
       onResolved(note.id);
     } catch {
@@ -64,7 +68,7 @@ export function EditorNoteCard({
           {busy === "accept" ? "…" : "Accept"}
         </button>
         <button
-          onClick={() => resolve("dismissed")}
+          onClick={() => resolve("rejected")}
           disabled={!!busy}
           className={`text-xs disabled:opacity-50 ${
             dark ? "text-cream/50 hover:text-cream/80" : "text-ink-soft hover:text-ink"

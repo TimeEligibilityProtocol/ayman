@@ -130,6 +130,10 @@ model EditorNote {
   title     String
   body      String
   isNew     Boolean  @default(true)
+  status    String   @default("pending") // pending | accepted | rejected — accept/reject are
+  // distinct signals, not both "get rid of it": accepted reinforces the book's
+  // direction, rejected tells the Editor not to build on this. Neither deletes
+  // the row — a rejected note is still evidence of what the author doesn't want.
   createdAt DateTime @default(now())
 }
 
