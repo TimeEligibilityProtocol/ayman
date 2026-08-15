@@ -38,6 +38,8 @@ export const UPDATE_BOOK_INTENT_TOOL = {
       acceptedThemes: { type: "array", items: { type: "string" }, description: "Themes the author just confirmed they want kept." },
       rejectedThemes: { type: "array", items: { type: "string" }, description: "Themes/topics the author just said to leave out." },
       hardConstraints: { type: "array", items: { type: "string" }, description: "Rules the author says must never be violated." },
+      acceptedStructureIdeas: { type: "array", items: { type: "string" }, description: "A way of organizing the book (e.g. 'group by decade') the author just confirmed they like." },
+      rejectedStructureIdeas: { type: "array", items: { type: "string" }, description: "A way of organizing the book the author just said they don't want." },
     },
     required: [],
   },

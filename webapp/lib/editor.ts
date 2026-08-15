@@ -49,6 +49,12 @@ function buildIntentBlock(intent: BookIntent | null): string {
     lines.push(`Do NOT build the book around these — the author explicitly rejected them: ${intent.rejectedThemes.join(", ")}`);
   if (intent.titlePreferences.length) lines.push(`Title preferences: ${intent.titlePreferences.join(", ")}`);
   if (intent.hardConstraints.length) lines.push(`Hard constraints (never violate): ${intent.hardConstraints.join(", ")}`);
+  if (intent.acceptedStructureIdeas.length)
+    lines.push(`Ways of organizing the book the author has confirmed: ${intent.acceptedStructureIdeas.join(", ")}`);
+  if (intent.rejectedStructureIdeas.length)
+    lines.push(
+      `Do NOT organize the book this way — the author explicitly rejected it: ${intent.rejectedStructureIdeas.join(", ")}`
+    );
   return lines.length > 1 ? lines.join("\n") : "";
 }
 
@@ -59,6 +65,8 @@ const INTENT_LIST_FIELDS = [
   "rejectedThemes",
   "titlePreferences",
   "hardConstraints",
+  "acceptedStructureIdeas",
+  "rejectedStructureIdeas",
 ] as const;
 
 /**
@@ -435,10 +443,13 @@ export async function proposeBookStructure(bookId: string) {
     : "";
 
   const intentBlock = buildIntentBlock(await getBookIntent(bookId));
+  const voiceProfile = buildVoiceProfileBlock(memory);
 
   const contextBlock = [
     "STORY MEMORY:",
     JSON.stringify(memory, null, 2),
+    "",
+    voiceProfile,
     "",
     intentBlock,
     "",
@@ -458,7 +469,7 @@ export async function proposeBookStructure(bookId: string) {
     max_tokens: 3000,
     system:
       getMasterPrompt() +
-      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in. If AUTHOR INTENT is present, treat its rejected themes/ideas as hard exclusions, not soft preferences.",
+      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in. If AUTHOR INTENT is present, treat its rejected themes/ideas as hard exclusions, not soft preferences. Part and Chapter titles should sound like this specific author's book, not a generic memoir — use the AUTHOR VOICE PROFILE if present.",
     tools: [PROPOSE_STRUCTURE_TOOL],
     tool_choice: { type: "tool", name: "propose_structure" },
     messages: [{ role: "user", content: contextBlock }],

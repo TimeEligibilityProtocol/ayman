@@ -11,6 +11,8 @@ interface Intent {
   rejectedThemes: string[];
   titlePreferences: string[];
   hardConstraints: string[];
+  acceptedStructureIdeas: string[];
+  rejectedStructureIdeas: string[];
 }
 
 function Chip({
@@ -200,6 +202,18 @@ export function BookIntentEditor({ bookId, intent }: { bookId: string; intent: I
         hint="things the Editor must never break"
         items={intent.hardConstraints}
         onChange={(hardConstraints) => save({ hardConstraints })}
+      />
+      <ListGroup
+        label="Ways of organizing you like"
+        hint={`e.g. "group by decade" — beyond the general Structure setting above`}
+        items={intent.acceptedStructureIdeas}
+        onChange={(acceptedStructureIdeas) => save({ acceptedStructureIdeas })}
+      />
+      <ListGroup
+        label="Ways of organizing to avoid"
+        hint="the Editor won't structure the book this way"
+        items={intent.rejectedStructureIdeas}
+        onChange={(rejectedStructureIdeas) => save({ rejectedStructureIdeas })}
       />
     </div>
   );

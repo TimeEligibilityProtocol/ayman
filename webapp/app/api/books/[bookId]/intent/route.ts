@@ -9,6 +9,8 @@ const LIST_FIELDS = [
   "rejectedThemes",
   "titlePreferences",
   "hardConstraints",
+  "acceptedStructureIdeas",
+  "rejectedStructureIdeas",
 ] as const;
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ bookId: string }> }) {

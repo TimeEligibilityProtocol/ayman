@@ -26,6 +26,8 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
     rejectedThemes: [],
     titlePreferences: [],
     hardConstraints: [],
+    acceptedStructureIdeas: [],
+    rejectedStructureIdeas: [],
   };
 
   const chapterCount = parts.reduce((n, p) => n + p.chapters.length, 0);

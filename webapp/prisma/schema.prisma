@@ -176,13 +176,15 @@ model BookIntent {
   bookId String @unique
   book   Book   @relation(fields: [bookId], references: [id])
 
-  bookForm            String? // memoir | autobiography | family_history | collection | narrative_nonfiction | hybrid
-  structurePreference String? // chronological | thematic | cinematic | mosaic
-  voiceNotes          String[] @default([]) // "Don't make me sound sentimental", "Keep my humour"...
-  acceptedThemes      String[] @default([])
-  rejectedThemes      String[] @default([])
-  titlePreferences    String[] @default([])
-  hardConstraints     String[] @default([])
+  bookForm               String? // memoir | autobiography | family_history | collection | narrative_nonfiction | hybrid
+  structurePreference    String? // chronological | thematic | cinematic | mosaic
+  voiceNotes             String[] @default([]) // "Don't make me sound sentimental", "Keep my humour"...
+  acceptedThemes         String[] @default([])
+  rejectedThemes         String[] @default([])
+  titlePreferences       String[] @default([])
+  hardConstraints        String[] @default([])
+  acceptedStructureIdeas String[] @default([]) // e.g. "group by decade" the author confirmed
+  rejectedStructureIdeas String[] @default([]) // e.g. a grouping the author explicitly turned down
 
   updatedAt DateTime @updatedAt
 }
