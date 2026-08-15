@@ -4,7 +4,7 @@ import { RECORD_MEMORY_TOOL, mergeMemory, type StoryMemoryData, type MemoryUpdat
 import { QUEUE_EDITOR_NOTES_TOOL, PROPOSE_STRUCTURE_TOOL } from "@/lib/editorTools";
 import { retrieveRelevant } from "@/lib/retrieval";
 import { effectiveTranscript } from "@/lib/storyText";
-import type { Book, Story } from "@prisma/client";
+import type { Book, Story, BookIntent } from "@prisma/client";
 
 const RECENT_TURNS_WINDOW = 6; // messages (user+editor combined)
 const RETRIEVAL_TOP_K = 4;
@@ -25,6 +25,31 @@ async function saveStoryMemory(bookId: string, data: StoryMemoryData) {
 function storyLabel(s: Pick<Story, "id" | "title" | "createdAt">) {
   const date = new Date(s.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   return `${s.title || "Untitled story"} (${date})`;
+}
+
+export async function getBookIntent(bookId: string): Promise<BookIntent | null> {
+  return prisma.bookIntent.findUnique({ where: { bookId } });
+}
+
+/**
+ * "How the author wants their book to read" — the answer to a different
+ * question than StoryMemory. Rendered into a block the model must actually
+ * respect: rejectedThemes/rejectedStructureIdeas are phrased as hard "do
+ * not propose" instructions, not just background info, so a turned-down
+ * idea doesn't quietly resurface next time.
+ */
+function buildIntentBlock(intent: BookIntent | null): string {
+  if (!intent) return "";
+  const lines: string[] = ["AUTHOR INTENT — how the author wants this book to read:"];
+  if (intent.bookForm) lines.push(`Form: ${intent.bookForm}`);
+  if (intent.structurePreference) lines.push(`Structure preference: ${intent.structurePreference}`);
+  if (intent.voiceNotes.length) lines.push(...intent.voiceNotes.map((n) => `- ${n}`));
+  if (intent.acceptedThemes.length) lines.push(`Themes the author has confirmed: ${intent.acceptedThemes.join(", ")}`);
+  if (intent.rejectedThemes.length)
+    lines.push(`Do NOT build the book around these — the author explicitly rejected them: ${intent.rejectedThemes.join(", ")}`);
+  if (intent.titlePreferences.length) lines.push(`Title preferences: ${intent.titlePreferences.join(", ")}`);
+  if (intent.hardConstraints.length) lines.push(`Hard constraints (never violate): ${intent.hardConstraints.join(", ")}`);
+  return lines.length > 1 ? lines.join("\n") : "";
 }
 
 /**
@@ -271,6 +296,7 @@ export async function approveStory(storyId: string): Promise<string> {
   const instruction = EDITING_INTENSITY_INSTRUCTIONS[intensity] || EDITING_INTENSITY_INSTRUCTIONS.keep_voice;
   const memory = await getStoryMemory(story.bookId);
   const voiceProfile = buildVoiceProfileBlock(memory);
+  const intentBlock = buildIntentBlock(await getBookIntent(story.bookId));
 
   const client = getAnthropicClient();
   const response = await client.messages.create({
@@ -279,7 +305,8 @@ export async function approveStory(storyId: string): Promise<string> {
     system:
       getMasterPrompt() +
       `\n\nWRITING MODE. The author has approved this story to become part of their manuscript. Editing intensity: ${intensity}. ${instruction} Never invent facts. Respond with ONLY the edited text, no preamble, no commentary.` +
-      (voiceProfile ? `\n\n${voiceProfile}` : ""),
+      (voiceProfile ? `\n\n${voiceProfile}` : "") +
+      (intentBlock ? `\n\n${intentBlock}` : ""),
     messages: [{ role: "user", content: effectiveTranscript(story) }],
   });
 
@@ -355,9 +382,13 @@ export async function proposeBookStructure(bookId: string) {
         .join("\n")
     : "";
 
+  const intentBlock = buildIntentBlock(await getBookIntent(bookId));
+
   const contextBlock = [
     "STORY MEMORY:",
     JSON.stringify(memory, null, 2),
+    "",
+    intentBlock,
     "",
     lockedBlock,
     "",
@@ -375,7 +406,7 @@ export async function proposeBookStructure(bookId: string) {
     max_tokens: 3000,
     system:
       getMasterPrompt() +
-      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in.",
+      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in. If AUTHOR INTENT is present, treat its rejected themes/ideas as hard exclusions, not soft preferences.",
     tools: [PROPOSE_STRUCTURE_TOOL],
     tool_choice: { type: "tool", name: "propose_structure" },
     messages: [{ role: "user", content: contextBlock }],

@@ -40,6 +40,7 @@ model Book {
   editorNotes       EditorNote[]
   conversationTurns ConversationTurn[]
   storyMemory       StoryMemory?
+  bookIntent        BookIntent?
 }
 
 // The atomic unit: one recording. VOICE -> STORY.
@@ -162,5 +163,26 @@ model StoryMemory {
   bookId    String   @unique
   book      Book     @relation(fields: [bookId], references: [id])
   data      Json
+  updatedAt DateTime @updatedAt
+}
+
+// Answers "how does the author want their book to read" — separate from
+// StoryMemory, which answers "what do I know about this person's life".
+// Fed into structure generation and manuscript editing; rejectedThemes /
+// rejectedStructureIdeas are what stop the Editor from re-proposing
+// something the author already turned down.
+model BookIntent {
+  id     String @id @default(cuid())
+  bookId String @unique
+  book   Book   @relation(fields: [bookId], references: [id])
+
+  bookForm            String? // memoir | autobiography | family_history | collection | narrative_nonfiction | hybrid
+  structurePreference String? // chronological | thematic | cinematic | mosaic
+  voiceNotes          String[] @default([]) // "Don't make me sound sentimental", "Keep my humour"...
+  acceptedThemes      String[] @default([])
+  rejectedThemes      String[] @default([])
+  titlePreferences    String[] @default([])
+  hardConstraints     String[] @default([])
+
   updatedAt DateTime @updatedAt
 }

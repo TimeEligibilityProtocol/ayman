@@ -4,6 +4,7 @@ import { getBookBySlug } from "@/lib/getBook";
 import { RegenerateStructureButton, ExportButton } from "@/components/StructureActions";
 import { RemoteEditableText } from "@/components/RemoteEditableText";
 import { PartListItem } from "@/components/PartListItem";
+import { BookIntentEditor } from "@/components/BookIntentEditor";
 import { BookIcon } from "@/components/icons";
 
 export default async function MyBookPage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -17,6 +18,15 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
   });
   const unplacedCount = await prisma.story.count({ where: { bookId: book.id, threadId: null } });
   const totalStories = await prisma.story.count({ where: { bookId: book.id } });
+  const intent = (await prisma.bookIntent.findUnique({ where: { bookId: book.id } })) || {
+    bookForm: null,
+    structurePreference: null,
+    voiceNotes: [],
+    acceptedThemes: [],
+    rejectedThemes: [],
+    titlePreferences: [],
+    hardConstraints: [],
+  };
 
   const chapterCount = parts.reduce((n, p) => n + p.chapters.length, 0);
 
@@ -49,6 +59,8 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
           <span className="text-gold-deep font-medium">Keep this</span> are never touched.
         </p>
       )}
+
+      {totalStories > 0 && <BookIntentEditor bookId={book.slug} intent={intent} />}
 
       <div className="rounded-2xl border border-border bg-card p-5 mb-8 flex items-center justify-between gap-4">
         <div>
