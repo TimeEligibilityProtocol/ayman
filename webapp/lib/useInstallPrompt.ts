@@ -7,27 +7,26 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// v3: bumped to reset everyone's client-side state after a bad deploy
-// (briefly) auto-dismissed the prompt permanently on a single tap.
-const DISMISSED_KEY = "ayman-install-dismissed-v3";
 const INSTALLED_KEY = "ayman-installed-v3";
 
 /**
- * Shared install-detection state, used by both the dismissable banner and
- * the always-present header install icon, so the two never disagree.
+ * Backs the always-present small install icon (header/sidebar) — no
+ * dismissable banner anymore, so there's nothing to nag with and nothing
+ * to permanently hide. It simply disappears once `installed` is true.
  *
  * Deliberately simple: localStorage only, scoped to THIS browsing context.
  * iOS confirmed (Apple/WebKit) isolates storage between Safari and a
  * standalone home-screen PWA — no client-side trick reliably bridges that
  * without a real server-side account system, which this app doesn't have.
- * Once dismissed, it stays dismissed in that context — no more re-nagging.
+ * Practical effect: on iOS the icon can't detect an install that happened
+ * via the manual steps, so it stays — a quiet icon staying is a much
+ * smaller cost than a banner that won't go away.
  */
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isSafariDesktop, setIsSafariDesktop] = useState(false);
   const [installed, setInstalled] = useState(true); // start true (hidden) until we know
-  const [dismissed, setDismissedState] = useState(true); // start true (hidden) until we know
 
   useEffect(() => {
     const standalone =
@@ -44,8 +43,6 @@ export function useInstallPrompt() {
       setInstalled(true);
       return;
     }
-
-    setDismissedState(localStorage.getItem(DISMISSED_KEY) === "1");
 
     const ua = navigator.userAgent;
     const ios = /iphone|ipad|ipod/i.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
@@ -83,24 +80,15 @@ export function useInstallPrompt() {
       }
       return "prompted";
     }
-    // iOS/Safari desktop give no signal that the manual steps were actually
-    // completed, and no signal later if the app is removed either — Apple
-    // gives a Safari tab no way to know either state. Auto-dismissing after
-    // showing the steps was tried and was wrong: one tap (even an
-    // exploratory one) hid the prompt forever, with no way back. The
-    // honest tradeoff here is: keep showing it until the user explicitly
-    // closes it (×) — that's the only signal iOS Safari actually gives us.
+    // iOS/Safari desktop give no way to detect that the manual steps were
+    // actually completed — so the icon just stays available; clicking it
+    // again only re-shows the same instructions, which is harmless.
     if (isIOS) return "ios-instructions";
     if (isSafariDesktop) return "safari-instructions";
     return "unavailable";
   }
 
-  function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, "1");
-    setDismissedState(true);
-  }
+  const canInstall = !installed && (!!deferredPrompt || isIOS || isSafariDesktop);
 
-  const canInstall = !installed && !dismissed && (!!deferredPrompt || isIOS || isSafariDesktop);
-
-  return { installed, isIOS, isSafariDesktop, canInstall, promptInstall, dismiss };
+  return { installed, isIOS, isSafariDesktop, canInstall, promptInstall };
 }

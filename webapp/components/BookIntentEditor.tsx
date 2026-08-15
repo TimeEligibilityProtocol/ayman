@@ -13,10 +13,60 @@ interface Intent {
   hardConstraints: string[];
 }
 
-function Chip({ text, onRemove }: { text: string; onRemove: () => void }) {
+function Chip({
+  text,
+  onRemove,
+  onEdit,
+}: {
+  text: string;
+  onRemove: () => void;
+  onEdit: (newText: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+
+  function commit() {
+    const value = draft.trim();
+    setEditing(false);
+    if (value && value !== text) onEdit(value);
+    else setDraft(text);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") {
+            setDraft(text);
+            setEditing(false);
+          }
+        }}
+        className="rounded-full border border-gold bg-cream-soft px-3 py-1 text-xs outline-none"
+      />
+    );
+  }
+
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-soft border border-border px-3 py-1 text-xs">
-      {text}
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(text);
+          setEditing(true);
+        }}
+        className="hover:underline"
+        title="Click to edit"
+      >
+        {text}
+      </button>
       <button
         type="button"
         onClick={onRemove}
@@ -46,7 +96,12 @@ function ListGroup({
       <p className="text-[11px] text-ink-soft/70 mb-2">{hint}</p>
       <div className="flex flex-wrap gap-1.5">
         {items.map((item, i) => (
-          <Chip key={`${item}-${i}`} text={item} onRemove={() => onChange(items.filter((_, j) => j !== i))} />
+          <Chip
+            key={`${item}-${i}`}
+            text={item}
+            onRemove={() => onChange(items.filter((_, j) => j !== i))}
+            onEdit={(newText) => onChange(items.map((it, j) => (j === i ? newText : it)))}
+          />
         ))}
         {items.length === 0 && <span className="text-xs text-ink-soft/50 italic">nothing here yet</span>}
       </div>
@@ -70,7 +125,7 @@ function SingleField({
       <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</div>
       <p className="text-[11px] text-ink-soft/70 mb-2">{hint}</p>
       {value ? (
-        <Chip text={value} onRemove={() => onChange(null)} />
+        <Chip text={value} onRemove={() => onChange(null)} onEdit={(newText) => onChange(newText)} />
       ) : (
         <span className="text-xs text-ink-soft/50 italic">not set yet</span>
       )}
@@ -101,7 +156,7 @@ export function BookIntentEditor({ bookId, intent }: { bookId: string; intent: I
       </div>
       <p className="text-xs text-ink-soft mb-4">
         This fills in on its own when you agree on something with your Editor in the Talk tab — a title, a
-        style, a theme. Remove anything (×) that doesn&apos;t sound right.
+        style, a theme. Click any item to edit it, or remove it (×) if you disagree.
       </p>
 
       <SingleField

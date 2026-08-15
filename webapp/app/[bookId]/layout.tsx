@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getBookBySlug } from "@/lib/getBook";
 import { NavBottom } from "@/components/NavBottom";
 import { NavSidebar } from "@/components/NavSidebar";
-import { InstallPrompt } from "@/components/InstallPrompt";
 import { InstallIconButton } from "@/components/InstallIconButton";
 
 export async function generateMetadata({
@@ -49,8 +48,6 @@ export default async function BookLayout({
           <span className="font-serif text-lg tracking-wide">{book.displayName.toUpperCase()}</span>
           <InstallIconButton className="text-ink-soft hover:text-gold-deep" />
         </header>
-
-        <InstallPrompt />
 
         <main className="flex-1 min-h-0 overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
