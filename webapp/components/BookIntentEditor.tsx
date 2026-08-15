@@ -20,7 +20,7 @@ function Chip({ text, onRemove }: { text: string; onRemove: () => void }) {
       <button
         type="button"
         onClick={onRemove}
-        aria-label="usuń"
+        aria-label="remove"
         className="text-ink-soft hover:text-red-600 leading-none"
       >
         ×
@@ -57,7 +57,7 @@ function ListGroup({
         {items.map((item, i) => (
           <Chip key={`${item}-${i}`} text={item} onRemove={() => onChange(items.filter((_, j) => j !== i))} />
         ))}
-        {items.length === 0 && <span className="text-xs text-ink-soft/50 italic">jeszcze nic tu nie ma</span>}
+        {items.length === 0 && <span className="text-xs text-ink-soft/50 italic">nothing here yet</span>}
       </div>
       <div className="flex gap-2">
         <input
@@ -69,7 +69,7 @@ function ListGroup({
               add();
             }
           }}
-          placeholder="+ dopisz ręcznie"
+          placeholder="+ add manually"
           className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
         />
       </div>
@@ -110,7 +110,7 @@ function SingleField({
                 }
               }
             }}
-            placeholder="jeszcze nie ustalone — dopisz albo poczekaj aż ustalicie to w rozmowie"
+            placeholder="not set yet — add one, or wait until you agree on it in conversation"
             className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
           />
         </div>
@@ -137,53 +137,53 @@ export function BookIntentEditor({ bookId, intent }: { bookId: string; intent: I
   return (
     <div className="rounded-2xl border border-border bg-card p-5 mb-8">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="font-serif text-lg">Co już ustaliliście</h2>
-        {saving && <span className="text-[10px] text-ink-soft/60">zapisuję…</span>}
+        <h2 className="font-serif text-lg">What we&apos;ve established</h2>
+        {saving && <span className="text-[10px] text-ink-soft/60">saving…</span>}
       </div>
       <p className="text-xs text-ink-soft mb-4">
-        To wypełnia się samo, kiedy w rozmowie z Edytorem (zakładka Talk) coś potwierdzicie — tytuł, styl,
-        temat. Możesz też dopisać coś ręcznie albo usunąć (×), jeśli się nie zgadzasz.
+        This fills in on its own when you agree on something with your Editor in the Talk tab — a title, a
+        style, a theme. You can also add something yourself, or remove it (×) if you disagree.
       </p>
 
       <SingleField
-        label="Forma książki"
-        hint="np. pamiętnik, historia rodzinna — ustala się, gdy to potwierdzicie w rozmowie"
+        label="Book form"
+        hint="e.g. memoir, family history — set once you confirm it in conversation"
         value={intent.bookForm}
         onChange={(bookForm) => save({ bookForm: bookForm ?? "" })}
       />
       <SingleField
-        label="Układ książki"
-        hint="np. chronologicznie, tematycznie — ustala się, gdy to potwierdzicie w rozmowie"
+        label="Structure"
+        hint="e.g. chronological, thematic — set once you confirm it in conversation"
         value={intent.structurePreference}
         onChange={(structurePreference) => save({ structurePreference: structurePreference ?? "" })}
       />
       <ListGroup
-        label="Tytuły, które się podobają"
-        hint="propozycje, które zaakceptowaliście w rozmowie"
+        label="Titles you like"
+        hint="suggestions you've agreed on in conversation"
         items={intent.titlePreferences}
         onChange={(titlePreferences) => save({ titlePreferences })}
       />
       <ListGroup
-        label="Styl / głos"
-        hint="jak Edytor ma pisać — np. „nie pisz smutno”, „krótkie rozdziały”"
+        label="Voice / style"
+        hint={`how the Editor should write — e.g. "don't write it sad", "short chapters"`}
         items={intent.voiceNotes}
         onChange={(voiceNotes) => save({ voiceNotes })}
       />
       <ListGroup
-        label="Tematy do zachowania"
-        hint="rzeczy, które na pewno mają być w książce"
+        label="Themes to keep"
+        hint="things that should definitely be in the book"
         items={intent.acceptedThemes}
         onChange={(acceptedThemes) => save({ acceptedThemes })}
       />
       <ListGroup
-        label="Tematy do pominięcia"
-        hint="Edytor nie będzie tego wplatał do książki"
+        label="Themes to leave out"
+        hint="the Editor won't build the book around these"
         items={intent.rejectedThemes}
         onChange={(rejectedThemes) => save({ rejectedThemes })}
       />
       <ListGroup
-        label="Twarde zasady"
-        hint="rzeczy, których Edytor nigdy nie może złamać"
+        label="Hard constraints"
+        hint="things the Editor must never break"
         items={intent.hardConstraints}
         onChange={(hardConstraints) => save({ hardConstraints })}
       />
