@@ -7,8 +7,10 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISSED_KEY = "ayman-install-dismissed-v2";
-const INSTALLED_KEY = "ayman-installed";
+// v3: bumped to reset everyone's client-side state after a bad deploy
+// (briefly) auto-dismissed the prompt permanently on a single tap.
+const DISMISSED_KEY = "ayman-install-dismissed-v3";
+const INSTALLED_KEY = "ayman-installed-v3";
 
 /**
  * Shared install-detection state, used by both the dismissable banner and
@@ -82,19 +84,14 @@ export function useInstallPrompt() {
       return "prompted";
     }
     // iOS/Safari desktop give no signal that the manual steps were actually
-    // completed — so once we've handed off instructions, mark it dismissed
-    // for FUTURE visits (localStorage only, not the live `dismissed` state)
-    // so the banner doesn't keep coming back every time the tab reopens.
-    // It stays visible for the rest of THIS session so she can still read
-    // the steps she just asked for.
-    if (isIOS) {
-      localStorage.setItem(DISMISSED_KEY, "1");
-      return "ios-instructions";
-    }
-    if (isSafariDesktop) {
-      localStorage.setItem(DISMISSED_KEY, "1");
-      return "safari-instructions";
-    }
+    // completed, and no signal later if the app is removed either — Apple
+    // gives a Safari tab no way to know either state. Auto-dismissing after
+    // showing the steps was tried and was wrong: one tap (even an
+    // exploratory one) hid the prompt forever, with no way back. The
+    // honest tradeoff here is: keep showing it until the user explicitly
+    // closes it (×) — that's the only signal iOS Safari actually gives us.
+    if (isIOS) return "ios-instructions";
+    if (isSafariDesktop) return "safari-instructions";
     return "unavailable";
   }
 
