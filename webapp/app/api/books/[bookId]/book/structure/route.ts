@@ -33,7 +33,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ bookId: s
 
   try {
     const result = await proposeBookStructure(book.id);
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, ok: true });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Structure generation failed" },

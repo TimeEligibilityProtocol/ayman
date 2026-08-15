@@ -389,31 +389,23 @@ export async function setStoryDecision(
 }
 
 /**
- * Generates (or regenerates) the whole book structure — Parts > Chapters >
- * Threads > Stories — as a revisable hypothesis, never forced. Re-running
- * this replaces the previous grouping; Story content itself is untouched.
+ * Generates a hypothesis for grouping currently-UNPLACED Stories into new
+ * Chapters — never writes Part/Chapter/Thread/Story directly. Existing
+ * structure (locked or not) is never touched by this; the author reviews
+ * each proposed Chapter individually (see acceptProposalItem/
+ * rejectProposalItem) and only accepted ones become real. To reconsider an
+ * existing Chapter, the author deletes it (already unplaces its Stories
+ * without losing them) — that's the "reject an existing grouping" half of
+ * this system; this function is the "propose a new one" half.
  */
 export async function proposeBookStructure(bookId: string) {
   const memory = await getStoryMemory(bookId);
 
-  // Stories already inside a locked Part are off the table entirely — the
-  // model only ever sees, and only ever regroups, stories that are either
-  // unplaced or sitting in a Part nobody has locked yet. It still needs to
-  // SEE the locked Parts (titles + what they cover) so the new material it
-  // proposes reads as one coherent book alongside them, not a mismatched
-  // add-on.
-  const lockedParts = await prisma.part.findMany({
-    where: { bookId, locked: true },
-    orderBy: { order: "asc" },
-    include: { chapters: { include: { threads: { include: { stories: true } } } } },
-  });
-  const lockedPartCount = lockedParts.length;
+  // Only genuinely unplaced Stories are ever up for (re)proposal — an
+  // existing Chapter, locked or not, is never regrouped or destroyed by
+  // generating a new proposal.
   const stories = await prisma.story.findMany({
-    where: {
-      bookId,
-      transcriptOriginal: { not: null },
-      OR: [{ threadId: null }, { thread: { chapter: { part: { locked: false } } } }],
-    },
+    where: { bookId, transcriptOriginal: { not: null }, threadId: null },
     select: {
       id: true,
       title: true,
@@ -426,12 +418,20 @@ export async function proposeBookStructure(bookId: string) {
   });
 
   if (stories.length === 0) {
-    return { parts: lockedPartCount, chapters: 0, threads: 0, skippedLocked: lockedPartCount };
+    return { itemCount: 0, storyCount: 0 };
   }
 
-  const lockedBlock = lockedParts.length
-    ? "ALREADY-FINAL PARTS OF THIS BOOK (locked by the author — do not recreate, rename, or duplicate these; the new material you propose must read as belonging to the same book):\n" +
-      lockedParts
+  // Still needs to SEE everything already committed (any Part, locked or
+  // not) so the new material it proposes reads as one coherent book
+  // alongside it, not a mismatched add-on — it just can't touch any of it.
+  const existingParts = await prisma.part.findMany({
+    where: { bookId },
+    orderBy: { order: "asc" },
+    include: { chapters: { include: { threads: { include: { stories: true } } } } },
+  });
+  const existingBlock = existingParts.length
+    ? "ALREADY-EXISTING PARTS OF THIS BOOK (do not recreate, rename, or duplicate these — the new Chapters you propose must read as belonging to the same book):\n" +
+      existingParts
         .map((p) => {
           const chapterLines = p.chapters
             .map((c) => `  - Chapter: "${c.title}" (${c.threads.reduce((n, t) => n + t.stories.length, 0)} stories)`)
@@ -453,7 +453,7 @@ export async function proposeBookStructure(bookId: string) {
     "",
     intentBlock,
     "",
-    lockedBlock,
+    existingBlock,
     "",
     "STORIES STILL TO PLACE (id, title, and either the approved text or the raw transcript):",
     ...stories.map(
@@ -469,7 +469,7 @@ export async function proposeBookStructure(bookId: string) {
     max_tokens: 3000,
     system:
       getMasterPrompt() +
-      "\n\nSTRUCTURE MODE. Propose (or revise) the book's Part/Chapter/Thread structure by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is only a hypothesis, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-FINAL PARTS are listed, the new Parts you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already locked in. If AUTHOR INTENT is present, treat its rejected themes/ideas as hard exclusions, not soft preferences. Part and Chapter titles should sound like this specific author's book, not a generic memoir — use the AUTHOR VOICE PROFILE if present.",
+      "\n\nSTRUCTURE MODE. Propose new Part/Chapter/Thread groupings by calling propose_structure, for the stories listed under STORIES STILL TO PLACE only. This is a hypothesis for the author to review, not a commitment — group stories that genuinely belong together; leave anything unclear out entirely rather than forcing it in. If ALREADY-EXISTING PARTS are listed, the new Parts/Chapters you propose are an addition to those, not a replacement — keep tone, themes, and chronology coherent with what's already there, and prefer reusing an existing Part's exact title when a new Chapter clearly belongs under it. If AUTHOR INTENT is present, treat its rejected themes/ideas as hard exclusions, not soft preferences. Part and Chapter titles should sound like this specific author's book, not a generic memoir — use the AUTHOR VOICE PROFILE if present.",
     tools: [PROPOSE_STRUCTURE_TOOL],
     tool_choice: { type: "tool", name: "propose_structure" },
     messages: [{ role: "user", content: contextBlock }],
@@ -478,7 +478,7 @@ export async function proposeBookStructure(bookId: string) {
   const toolBlock = response.content.find(
     (b) => b.type === "tool_use" && b.name === "propose_structure"
   );
-  if (!toolBlock || toolBlock.type !== "tool_use") return { parts: 0, chapters: 0, threads: 0 };
+  if (!toolBlock || toolBlock.type !== "tool_use") return { itemCount: 0, storyCount: 0 };
 
   const proposal = toolBlock.input as {
     parts?: Array<{
@@ -486,63 +486,97 @@ export async function proposeBookStructure(bookId: string) {
       chapters: Array<{ title: string; threads: Array<{ title: string; storyIds: string[] }> }>;
     }>;
   };
-  if (!Array.isArray(proposal.parts)) {
-    return { parts: lockedPartCount, chapters: 0, threads: 0, skippedLocked: lockedPartCount };
+  if (!Array.isArray(proposal.parts)) return { itemCount: 0, storyCount: 0 };
+
+  // A regenerated hypothesis replaces the previous one — safe, since
+  // nothing in a pending proposal was ever committed. Only pending items
+  // are cleared; anything already accepted/rejected is history, not touched.
+  const stalePending = await prisma.structureProposalItem.findMany({
+    where: { status: "pending", proposal: { bookId } },
+    select: { id: true },
+  });
+  if (stalePending.length) {
+    await prisma.structureProposalItem.deleteMany({ where: { id: { in: stalePending.map((i) => i.id) } } });
   }
 
-  // Wipe only the UNLOCKED parts of the previous structure — locked Parts
-  // (and everything under them) are left completely untouched. Story
-  // content itself is never touched either way.
-  const unlockedParts = await prisma.part.findMany({
-    where: { bookId, locked: false },
-    include: { chapters: true },
-  });
-  const unlockedChapterIds = unlockedParts.flatMap((p) => p.chapters.map((c) => c.id));
-  const unlockedThreads = await prisma.thread.findMany({ where: { chapterId: { in: unlockedChapterIds } } });
-  await prisma.story.updateMany({
-    where: { threadId: { in: unlockedThreads.map((t) => t.id) } },
-    data: { threadId: null },
-  });
-  await prisma.thread.deleteMany({ where: { chapterId: { in: unlockedChapterIds } } });
-  await prisma.chapter.deleteMany({ where: { id: { in: unlockedChapterIds } } });
-  await prisma.part.deleteMany({ where: { bookId, locked: false } });
+  const createdProposal = await prisma.structureProposal.create({ data: { bookId } });
 
-  const maxLockedOrder = await prisma.part.aggregate({ where: { bookId, locked: true }, _max: { order: true } });
-  const startOrder = (maxLockedOrder._max.order ?? -1) + 1;
-
-  let chapterCount = 0;
-  let threadCount = 0;
-
-  for (const [partIdx, part] of proposal.parts.entries()) {
-    const createdPart = await prisma.part.create({
-      data: { bookId, title: part.title, order: startOrder + partIdx },
-    });
-    for (const [chapterIdx, chapter] of part.chapters.entries()) {
-      const createdChapter = await prisma.chapter.create({
-        data: { bookId, partId: createdPart.id, title: chapter.title, order: chapterIdx },
+  let itemCount = 0;
+  let storyCount = 0;
+  for (const part of proposal.parts) {
+    for (const chapter of part.chapters) {
+      const threads = chapter.threads
+        .map((t) => ({ title: t.title, storyIds: t.storyIds.filter(Boolean) }))
+        .filter((t) => t.storyIds.length > 0);
+      if (threads.length === 0) continue;
+      await prisma.structureProposalItem.create({
+        data: {
+          proposalId: createdProposal.id,
+          partTitle: part.title,
+          chapterTitle: chapter.title,
+          threads,
+        },
       });
-      chapterCount++;
-      for (const thread of chapter.threads) {
-        const createdThread = await prisma.thread.create({
-          data: { bookId, chapterId: createdChapter.id, title: thread.title },
-        });
-        threadCount++;
-        if (thread.storyIds.length > 0) {
-          await prisma.story.updateMany({
-            where: { id: { in: thread.storyIds }, bookId },
-            data: { threadId: createdThread.id },
-          });
-        }
-      }
+      itemCount++;
+      storyCount += threads.reduce((n, t) => n + t.storyIds.length, 0);
     }
   }
 
-  return {
-    parts: proposal.parts.length + lockedPartCount,
-    chapters: chapterCount,
-    threads: threadCount,
-    skippedLocked: lockedPartCount,
-  };
+  return { itemCount, storyCount };
+}
+
+/**
+ * Commits one proposed Chapter for real: finds-or-creates its Part by exact
+ * title match (so a Chapter proposed under an existing Part's name joins
+ * it, rather than duplicating it), creates the Chapter and its Thread(s),
+ * and places only the Stories that are STILL unplaced (a story could in
+ * theory have been placed some other way between proposal and review).
+ */
+export async function acceptProposalItem(itemId: string) {
+  const item = await prisma.structureProposalItem.findUniqueOrThrow({
+    where: { id: itemId },
+    include: { proposal: true },
+  });
+  if (item.status !== "pending") return;
+  const bookId = item.proposal.bookId;
+
+  let part = await prisma.part.findFirst({ where: { bookId, title: item.partTitle } });
+  if (!part) {
+    const maxOrder = await prisma.part.aggregate({ where: { bookId }, _max: { order: true } });
+    part = await prisma.part.create({
+      data: { bookId, title: item.partTitle, order: (maxOrder._max.order ?? -1) + 1 },
+    });
+  }
+
+  const maxChapterOrder = await prisma.chapter.aggregate({ where: { partId: part.id }, _max: { order: true } });
+  const chapter = await prisma.chapter.create({
+    data: {
+      bookId,
+      partId: part.id,
+      title: item.chapterTitle,
+      order: (maxChapterOrder._max.order ?? -1) + 1,
+    },
+  });
+
+  const threads = item.threads as Array<{ title: string; storyIds: string[] }>;
+  for (const thread of threads) {
+    const createdThread = await prisma.thread.create({
+      data: { bookId, chapterId: chapter.id, title: thread.title },
+    });
+    if (thread.storyIds.length > 0) {
+      await prisma.story.updateMany({
+        where: { id: { in: thread.storyIds }, bookId, threadId: null },
+        data: { threadId: createdThread.id },
+      });
+    }
+  }
+
+  await prisma.structureProposalItem.update({ where: { id: itemId }, data: { status: "accepted" } });
+}
+
+/** Leaves the item's Stories unplaced — nothing else happens. */
+export async function rejectProposalItem(itemId: string) {
+  await prisma.structureProposalItem.update({ where: { id: itemId }, data: { status: "rejected" } });
 }
 
 /**

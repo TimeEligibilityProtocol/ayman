@@ -5,6 +5,7 @@ import { RegenerateStructureButton, ExportButton } from "@/components/StructureA
 import { RemoteEditableText } from "@/components/RemoteEditableText";
 import { PartListItem } from "@/components/PartListItem";
 import { BookIntentEditor } from "@/components/BookIntentEditor";
+import { StructureProposalReview } from "@/components/StructureProposalReview";
 import { BookIcon } from "@/components/icons";
 
 export default async function MyBookPage({ params }: { params: Promise<{ bookId: string }> }) {
@@ -29,6 +30,22 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
     acceptedStructureIdeas: [],
     rejectedStructureIdeas: [],
   };
+
+  const pendingItemRows = await prisma.structureProposalItem.findMany({
+    where: { status: "pending", proposal: { bookId: book.id } },
+    orderBy: { createdAt: "asc" },
+  });
+  const pendingItems = pendingItemRows.map((item) => ({
+    id: item.id,
+    partTitle: item.partTitle,
+    chapterTitle: item.chapterTitle,
+    threads: item.threads as Array<{ title: string; storyIds: string[] }>,
+  }));
+  const pendingStoryIds = pendingItems.flatMap((item) => item.threads.flatMap((t) => t.storyIds));
+  const pendingStories = pendingStoryIds.length
+    ? await prisma.story.findMany({ where: { id: { in: pendingStoryIds } }, select: { id: true, title: true } })
+    : [];
+  const storyTitles = Object.fromEntries(pendingStories.map((s) => [s.id, s.title || "Untitled story"]));
 
   const chapterCount = parts.reduce((n, p) => n + p.chapters.length, 0);
 
@@ -57,10 +74,12 @@ export default async function MyBookPage({ params }: { params: Promise<{ bookId:
       </div>
       {parts.length > 0 && (
         <p className="text-xs text-ink-soft -mt-4 mb-6">
-          &quot;Update structure&quot; re-reads every unplaced story and re-groups them — Parts marked{" "}
-          <span className="text-gold-deep font-medium">Keep this</span> are never touched.
+          &quot;Update structure&quot; only proposes new chapters for unplaced stories — existing chapters are
+          never changed. You review and accept each one below before it becomes part of the book.
         </p>
       )}
+
+      <StructureProposalReview bookId={book.slug} items={pendingItems} storyTitles={storyTitles} />
 
       {totalStories > 0 && <BookIntentEditor bookId={book.slug} intent={intent} />}
 
