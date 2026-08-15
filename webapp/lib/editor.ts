@@ -238,6 +238,29 @@ const EDITING_INTENSITY_INSTRUCTIONS: Record<string, string> = {
 };
 
 /**
+ * "Protect the author's voice" is only as good as the material the model
+ * actually gets to hear that voice in. Renders StoryMemory's author_voice
+ * observations + a handful of real quotes into a block the model can
+ * concretely imitate, instead of a bare instruction with nothing behind it.
+ */
+function buildVoiceProfileBlock(memory: StoryMemoryData): string {
+  const voice = memory.author_voice;
+  const quotes = (memory.important_quotes || []).slice(0, 5) as Array<{ text?: string }>;
+  if (!voice && quotes.length === 0) return "";
+
+  const lines: string[] = ["AUTHOR VOICE PROFILE — imitate this, don't default to generic memoir prose:"];
+  if (voice?.tone) lines.push(`Tone: ${voice.tone}`);
+  if (voice?.rhythm) lines.push(`Rhythm: ${voice.rhythm}`);
+  if (voice?.recurring_phrases?.length) lines.push(`Recurring phrases: ${voice.recurring_phrases.join(", ")}`);
+  if (voice?.style_notes?.length) lines.push(...voice.style_notes.map((n) => `- ${n}`));
+  if (quotes.length) {
+    lines.push("Real fragments in the author's own words:");
+    lines.push(...quotes.filter((q) => q.text).map((q) => `"${q.text}"`));
+  }
+  return lines.join("\n");
+}
+
+/**
  * Handles the "Yes, that's it" approval — promotes a Story's transcript
  * into an Approved Story via a literary edit at the book's chosen
  * intensity level. The original transcript is never touched.
@@ -246,6 +269,8 @@ export async function approveStory(storyId: string): Promise<string> {
   const story = await prisma.story.findUniqueOrThrow({ where: { id: storyId }, include: { book: true } });
   const intensity = story.book.editingIntensity || "keep_voice";
   const instruction = EDITING_INTENSITY_INSTRUCTIONS[intensity] || EDITING_INTENSITY_INSTRUCTIONS.keep_voice;
+  const memory = await getStoryMemory(story.bookId);
+  const voiceProfile = buildVoiceProfileBlock(memory);
 
   const client = getAnthropicClient();
   const response = await client.messages.create({
@@ -253,7 +278,8 @@ export async function approveStory(storyId: string): Promise<string> {
     max_tokens: 2000,
     system:
       getMasterPrompt() +
-      `\n\nWRITING MODE. The author has approved this story to become part of their manuscript. Editing intensity: ${intensity}. ${instruction} Never invent facts. Respond with ONLY the edited text, no preamble, no commentary.`,
+      `\n\nWRITING MODE. The author has approved this story to become part of their manuscript. Editing intensity: ${intensity}. ${instruction} Never invent facts. Respond with ONLY the edited text, no preamble, no commentary.` +
+      (voiceProfile ? `\n\n${voiceProfile}` : ""),
     messages: [{ role: "user", content: effectiveTranscript(story) }],
   });
 
