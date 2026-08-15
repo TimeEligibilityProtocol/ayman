@@ -40,38 +40,15 @@ function ListGroup({
   items: string[];
   onChange: (items: string[]) => void;
 }) {
-  const [draft, setDraft] = useState("");
-
-  function add() {
-    const value = draft.trim();
-    if (!value) return;
-    onChange([...items, value]);
-    setDraft("");
-  }
-
   return (
     <div className="mb-5">
       <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</div>
       <p className="text-[11px] text-ink-soft/70 mb-2">{hint}</p>
-      <div className="flex flex-wrap gap-1.5 mb-2">
+      <div className="flex flex-wrap gap-1.5">
         {items.map((item, i) => (
           <Chip key={`${item}-${i}`} text={item} onRemove={() => onChange(items.filter((_, j) => j !== i))} />
         ))}
         {items.length === 0 && <span className="text-xs text-ink-soft/50 italic">nothing here yet</span>}
-      </div>
-      <div className="flex gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add();
-            }
-          }}
-          placeholder="+ add manually"
-          className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
-        />
       </div>
     </div>
   );
@@ -88,8 +65,6 @@ function SingleField({
   value: string | null;
   onChange: (value: string | null) => void;
 }) {
-  const [draft, setDraft] = useState("");
-
   return (
     <div className="mb-5">
       <div className="text-xs uppercase tracking-wide text-ink-soft mb-1">{label}</div>
@@ -97,23 +72,7 @@ function SingleField({
       {value ? (
         <Chip text={value} onRemove={() => onChange(null)} />
       ) : (
-        <div className="flex gap-2">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (draft.trim()) {
-                  onChange(draft.trim());
-                  setDraft("");
-                }
-              }
-            }}
-            placeholder="not set yet — add one, or wait until you agree on it in conversation"
-            className="flex-1 text-xs rounded-lg border border-border bg-cream-soft px-3 py-1.5 outline-none focus:border-gold"
-          />
-        </div>
+        <span className="text-xs text-ink-soft/50 italic">not set yet</span>
       )}
     </div>
   );
@@ -142,7 +101,7 @@ export function BookIntentEditor({ bookId, intent }: { bookId: string; intent: I
       </div>
       <p className="text-xs text-ink-soft mb-4">
         This fills in on its own when you agree on something with your Editor in the Talk tab — a title, a
-        style, a theme. You can also add something yourself, or remove it (×) if you disagree.
+        style, a theme. Remove anything (×) that doesn&apos;t sound right.
       </p>
 
       <SingleField
